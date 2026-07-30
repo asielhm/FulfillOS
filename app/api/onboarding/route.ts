@@ -1,9 +1,10 @@
 import { randomUUID } from "node:crypto";
 
 import { createClient } from "@/lib/supabase/server";
-import { type NextRequest, NextResponse } from "next/server";
+import { type NextRequest } from "next/server";
 
 export const runtime = "nodejs";
+export const dynamic = "force-dynamic";
 
 function createSlug(value: string) {
   return value
@@ -15,15 +16,24 @@ function createSlug(value: string) {
     .replace(/^-+|-+$/g, "");
 }
 
-function redirectToOnboardingWithError(
-  request: NextRequest,
-  message: string,
-) {
-  const url = new URL("/onboarding", request.url);
+/*
+ * A relative Location header prevents Codespaces or another
+ * reverse proxy from adding an incorrect host or port.
+ */
+function redirectResponse(path: string) {
+  return new Response(null, {
+    status: 303,
+    headers: {
+      Location: path,
+      "Cache-Control": "no-store",
+    },
+  });
+}
 
-  url.searchParams.set("error", message);
-
-  return NextResponse.redirect(url, 303);
+function redirectWithError(message: string) {
+  return redirectResponse(
+    `/onboarding?error=${encodeURIComponent(message)}`,
+  );
 }
 
 export async function POST(request: NextRequest) {
@@ -37,16 +47,12 @@ export async function POST(request: NextRequest) {
   const userId = authData?.claims?.sub;
 
   if (authError || !userId) {
-    return NextResponse.redirect(
-      new URL("/auth/login", request.url),
-      303,
-    );
+    return redirectResponse("/auth/login");
   }
 
   /*
-   * Prevent duplicate organizations.
-   * If the user already belongs to a workspace,
-   * send them directly to the dashboard.
+   * If the user already belongs to a company,
+   * do not create another workspace.
    */
   const {
     data: existingMembership,
@@ -60,17 +66,11 @@ export async function POST(request: NextRequest) {
     .maybeSingle();
 
   if (membershipError) {
-    return redirectToOnboardingWithError(
-      request,
-      membershipError.message,
-    );
+    return redirectWithError(membershipError.message);
   }
 
   if (existingMembership) {
-    return NextResponse.redirect(
-      new URL("/dashboard", request.url),
-      303,
-    );
+    return redirectResponse("/dashboard");
   }
 
   const formData = await request.formData();
@@ -83,8 +83,7 @@ export async function POST(request: NextRequest) {
     organizationName.length < 2 ||
     organizationName.length > 120
   ) {
-    return redirectToOnboardingWithError(
-      request,
+    return redirectWithError(
       "The company name must contain between 2 and 120 characters.",
     );
   }
@@ -106,14 +105,8 @@ export async function POST(request: NextRequest) {
     });
 
   if (creationError) {
-    return redirectToOnboardingWithError(
-      request,
-      creationError.message,
-    );
+    return redirectWithError(creationError.message);
   }
 
-  return NextResponse.redirect(
-    new URL("/dashboard", request.url),
-    303,
-  );
+  return redirectResponse("/dashboard");
 }

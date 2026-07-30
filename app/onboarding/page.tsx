@@ -1,17 +1,33 @@
+import { Suspense } from "react";
 import { redirect } from "next/navigation";
 
 import { createClient } from "@/lib/supabase/server";
 
 type OnboardingPageProps = {
   searchParams: Promise<{
-    error?: string;
+    error?: string | string[];
   }>;
 };
 
-export default async function OnboardingPage({
+export default function OnboardingPage({
+  searchParams,
+}: OnboardingPageProps) {
+  return (
+    <Suspense fallback={<OnboardingLoading />}>
+      <OnboardingContent searchParams={searchParams} />
+    </Suspense>
+  );
+}
+
+async function OnboardingContent({
   searchParams,
 }: OnboardingPageProps) {
   const parameters = await searchParams;
+
+  const errorMessage = Array.isArray(parameters.error)
+    ? parameters.error[0]
+    : parameters.error;
+
   const supabase = await createClient();
 
   const {
@@ -19,26 +35,33 @@ export default async function OnboardingPage({
     error: authError,
   } = await supabase.auth.getClaims();
 
-  if (
-    authError ||
-    !authData?.claims ||
-    !authData.claims.sub
-  ) {
+  const userId = authData?.claims?.sub;
+
+  if (authError || !userId) {
     redirect("/auth/login");
   }
 
-  const userId = String(authData.claims.sub);
-
   const {
     data: existingMembership,
+    error: membershipError,
   } = await supabase
     .from("organization_members")
     .select("organization_id")
-    .eq("user_id", userId)
+    .eq("user_id", String(userId))
     .eq("status", "active")
     .limit(1)
     .maybeSingle();
 
+  if (membershipError) {
+    throw new Error(
+      `The workspace membership could not be checked: ${membershipError.message}`,
+    );
+  }
+
+  /*
+   * A user who already belongs to an organization
+   * should never see the onboarding form again.
+   */
   if (existingMembership) {
     redirect("/dashboard");
   }
@@ -102,16 +125,19 @@ export default async function OnboardingPage({
               </p>
             </div>
 
-            {parameters.error && (
-              <div className="mb-6 rounded-xl border border-red-200 bg-red-50 p-4 text-sm font-medium text-red-700">
-                {parameters.error}
+            {errorMessage && (
+              <div
+                role="alert"
+                className="mb-6 rounded-xl border border-red-200 bg-red-50 p-4 text-sm font-medium text-red-700"
+              >
+                {errorMessage}
               </div>
             )}
 
             <form
-  action="/api/onboarding"
-  method="post"
->
+              action="/api/onboarding"
+              method="post"
+            >
               <div>
                 <label
                   htmlFor="organizationName"
@@ -151,6 +177,26 @@ export default async function OnboardingPage({
             </p>
           </section>
         </div>
+      </div>
+    </main>
+  );
+}
+
+function OnboardingLoading() {
+  return (
+    <main className="flex min-h-screen items-center justify-center bg-[#f5f7fa] px-6">
+      <div className="text-center">
+        <div className="mx-auto flex h-14 w-14 animate-pulse items-center justify-center rounded-xl bg-[#f59e0b] text-2xl font-black text-[#162033]">
+          F
+        </div>
+
+        <p className="mt-5 font-bold text-[#162033]">
+          Loading workspace setup...
+        </p>
+
+        <p className="mt-2 text-sm text-slate-500">
+          Verifying your account and organization.
+        </p>
       </div>
     </main>
   );
