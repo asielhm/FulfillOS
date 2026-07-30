@@ -29,7 +29,10 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en" suppressHydrationWarning>
-      <body className={`${geistSans.className} antialiased`}>
+      <body
+  suppressHydrationWarning
+  className={`${geistSans.className} antialiased`}
+>
         <ThemeProvider
           attribute="class"
           defaultTheme="system"

@@ -77,14 +77,14 @@ export default function HomePage() {
             </a>
 
             <a
-              href="/sign-in"
+              href="/auth/login"
               className="rounded-lg border border-slate-500 px-4 py-2 transition hover:border-white hover:bg-white/10"
             >
               Sign in
             </a>
 
             <a
-              href="/sign-up"
+              href="/auth/sign-up"
               className="rounded-lg bg-[#f59e0b] px-5 py-2 font-bold text-[#162033] transition hover:bg-[#fdba2d]"
             >
               Start free
@@ -92,7 +92,7 @@ export default function HomePage() {
           </nav>
 
           <a
-            href="/sign-in"
+            href="/auth/login"
             className="rounded-lg bg-[#f59e0b] px-4 py-2 text-sm font-bold text-[#162033] md:hidden"
           >
             Sign in
@@ -128,7 +128,7 @@ export default function HomePage() {
 
             <div className="mt-10 flex flex-wrap gap-4">
               <a
-                href="/sign-up"
+                href="/auth/sign-up"
                 className="rounded-xl bg-[#f59e0b] px-7 py-4 font-bold text-[#162033] shadow-lg shadow-orange-950/20 transition hover:-translate-y-0.5 hover:bg-[#fdba2d]"
               >
                 Create your workspace
@@ -268,7 +268,7 @@ export default function HomePage() {
                 </p>
 
                 <a
-                  href="/sign-in"
+                  href="/auth/login"
                   className="mt-6 inline-flex text-sm font-bold text-[#c7511f]"
                 >
                   Learn more →
@@ -344,7 +344,7 @@ export default function HomePage() {
           </div>
 
           <a
-            href="/sign-up"
+            href="/auth/sign-up"
             className="rounded-xl bg-[#f59e0b] px-7 py-4 font-bold text-[#162033] transition hover:bg-[#fdba2d]"
           >
             Create an account
