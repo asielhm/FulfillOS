@@ -68,43 +68,41 @@ async function WarehousesContent({
     redirect("/onboarding");
   }
 
-  const [
-    organizationResult,
-    warehousesResult,
-  ] = await Promise.all([
-    supabase
-      .from("organizations")
-      .select("name")
-      .eq("id", membership.organization_id)
-      .single(),
+  const [organizationResult, warehousesResult] =
+    await Promise.all([
+      supabase
+        .from("organizations")
+        .select("name")
+        .eq("id", membership.organization_id)
+        .single(),
 
-    supabase
-      .from("warehouses")
-      .select(
-        `
-          id,
-          name,
-          code,
-          city,
-          state_region,
-          country_code,
-          timezone,
-          is_primary,
-          is_active,
-          created_at
-        `,
-      )
-      .eq(
-        "organization_id",
-        membership.organization_id,
-      )
-      .order("is_primary", {
-        ascending: false,
-      })
-      .order("name", {
-        ascending: true,
-      }),
-  ]);
+      supabase
+        .from("warehouses")
+        .select(
+          `
+            id,
+            name,
+            code,
+            city,
+            state_region,
+            country_code,
+            timezone,
+            is_primary,
+            is_active,
+            created_at
+          `,
+        )
+        .eq(
+          "organization_id",
+          membership.organization_id,
+        )
+        .order("is_primary", {
+          ascending: false,
+        })
+        .order("name", {
+          ascending: true,
+        }),
+    ]);
 
   if (organizationResult.error) {
     throw new Error(
@@ -180,6 +178,7 @@ async function WarehousesContent({
               <span className="text-xl leading-none">
                 +
               </span>
+
               Add warehouse
             </Link>
           )}
@@ -248,12 +247,14 @@ async function WarehousesContent({
                 .join(", ");
 
               return (
-                <article
+                <Link
                   key={warehouse.id}
-                  className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm transition hover:-translate-y-0.5 hover:border-amber-300 hover:shadow-md"
+                  href={`/warehouses/${warehouse.id}`}
+                  aria-label={`Open ${warehouse.name}`}
+                  className="group block rounded-3xl border border-slate-200 bg-white p-6 shadow-sm transition hover:-translate-y-1 hover:border-amber-300 hover:shadow-lg focus:outline-none focus:ring-4 focus:ring-amber-200"
                 >
                   <div className="flex items-start justify-between gap-4">
-                    <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-[#162033] text-2xl">
+                    <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-[#162033] text-2xl transition group-hover:scale-105">
                       🏭
                     </div>
 
@@ -278,7 +279,7 @@ async function WarehousesContent({
                     </div>
                   </div>
 
-                  <h2 className="mt-6 text-xl font-extrabold text-[#162033]">
+                  <h2 className="mt-6 text-xl font-extrabold text-[#162033] transition group-hover:text-[#c7511f]">
                     {warehouse.name}
                   </h2>
 
@@ -291,8 +292,7 @@ async function WarehousesContent({
                       <span className="font-bold text-[#162033]">
                         Location:
                       </span>{" "}
-                      {location ||
-                        "Address not added yet"}
+                      {location || "Address not added yet"}
                     </p>
 
                     <p>
@@ -304,12 +304,17 @@ async function WarehousesContent({
                   </div>
 
                   <div className="mt-6 border-t border-slate-100 pt-5">
-                    <p className="text-sm font-medium text-slate-500">
-                      Internal locations will be configured
-                      in the next step.
-                    </p>
+                    <div className="flex items-center justify-between gap-3">
+                      <p className="text-sm font-medium text-slate-500">
+                        Manage areas and storage locations
+                      </p>
+
+                      <span className="shrink-0 font-bold text-[#c7511f] transition group-hover:translate-x-1">
+                        Open →
+                      </span>
+                    </div>
                   </div>
-                </article>
+                </Link>
               );
             })}
           </section>
