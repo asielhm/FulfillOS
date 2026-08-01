@@ -1,4 +1,3 @@
-cat > 'app/warehouses/[warehouseId]/page.tsx' <<'EOF'
 import Link from "next/link";
 import { Suspense } from "react";
 import {
@@ -472,4 +471,3 @@ function WarehouseDetailLoading() {
     </main>
   );
 }
-EOF
