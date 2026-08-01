@@ -247,12 +247,14 @@ async function WarehousesContent({
                 .join(", ");
 
               return (
-                <Link
-                  key={warehouse.id}
-                  href={`/warehouses/${warehouse.id}`}
-                  aria-label={`Open ${warehouse.name}`}
-                  className="group block rounded-3xl border border-slate-200 bg-white p-6 shadow-sm transition hover:-translate-y-1 hover:border-amber-300 hover:shadow-lg focus:outline-none focus:ring-4 focus:ring-amber-200"
-                >
+                <a
+  key={warehouse.id}
+  href={`/warehouses/${encodeURIComponent(
+    warehouse.id,
+  )}`}
+  aria-label={`Open ${warehouse.name}`}
+  className="group block cursor-pointer rounded-3xl border border-slate-200 bg-white p-6 shadow-sm transition hover:-translate-y-1 hover:border-amber-300 hover:shadow-lg focus:outline-none focus:ring-4 focus:ring-amber-200"
+>
                   <div className="flex items-start justify-between gap-4">
                     <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-[#162033] text-2xl transition group-hover:scale-105">
                       🏭
@@ -314,7 +316,7 @@ async function WarehousesContent({
                       </span>
                     </div>
                   </div>
-                </Link>
+                </a>
               );
             })}
           </section>
