@@ -304,10 +304,10 @@ async function DashboardContent() {
 
               <div className="space-y-1">
                 <NavigationItem
-                  label="Customers"
-                  icon="♙"
-                  badge="Next"
-                />
+  label="Customers"
+  icon="♙"
+  href="/customers"
+/>
 
                 <NavigationItem
                   label="Products"
@@ -424,11 +424,11 @@ async function DashboardContent() {
               />
 
               <QuickAction
-                icon="👤"
-                title="Add customer"
-                description="Next setup step"
-                badge="Next"
-              />
+  icon="👤"
+  title="Add customer"
+  description="Create a new client"
+  href="/customers/new"
+/>
 
               <QuickAction
                 icon="📥"
@@ -680,10 +680,10 @@ async function DashboardContent() {
                   />
 
                   <SetupItem
-                    title="Customer"
-                    description="Add your first client"
-                    badge="Next"
-                  />
+  title="Customer"
+  description="Manage your clients"
+  href="/customers"
+/>
 
                   <SetupItem
                     title="Product"
