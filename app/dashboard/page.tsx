@@ -243,10 +243,12 @@ async function DashboardContent() {
             badge="Next"
           />
 
-          <MobileNavItem
-            label="Inbound"
-            badge="Soon"
-          />
+          <QuickAction
+  icon="📥"
+  title="New inbound"
+  description="Register an expected shipment"
+  href="/inbound/new"
+/>
 
           <MobileNavItem
             label="Inventory"
@@ -274,10 +276,10 @@ async function DashboardContent() {
                 />
 
                 <NavigationItem
-                  label="Inbound"
-                  icon="↓"
-                  badge="Soon"
-                />
+  label="Inbound"
+  icon="↓"
+  href="/inbound"
+/>
 
                 <NavigationItem
                   label="Inventory"
