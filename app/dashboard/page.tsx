@@ -234,25 +234,20 @@ async function DashboardContent() {
           />
 
           <MobileNavItem
-            label="Warehouses"
-            href="/warehouses"
+            label="Inbound"
+            href="/inbound"
           />
 
           <MobileNavItem
             label="Customers"
-            badge="Next"
+            href="/customers"
           />
 
-          <QuickAction
-  icon="📥"
-  title="New inbound"
-  description="Register an expected shipment"
-  href="/inbound/new"
-/>
+          <MobileNavItem label="Products" href="/products" />
 
           <MobileNavItem
             label="Inventory"
-            badge="Soon"
+            href="/inventory"
           />
         </div>
       </div>
@@ -284,19 +279,19 @@ async function DashboardContent() {
                 <NavigationItem
                   label="Inventory"
                   icon="□"
-                  badge="Soon"
+                  href="/inventory"
                 />
 
                 <NavigationItem
                   label="Prep & Orders"
                   icon="✓"
-                  badge="Soon"
+                  href="/work-orders"
                 />
 
                 <NavigationItem
                   label="Outbound"
                   icon="→"
-                  badge="Soon"
+                  href="/outbound"
                 />
               </div>
 
@@ -314,7 +309,7 @@ async function DashboardContent() {
                 <NavigationItem
                   label="Products"
                   icon="▦"
-                  badge="Soon"
+                  href="/products"
                 />
 
                 <NavigationItem
@@ -332,13 +327,13 @@ async function DashboardContent() {
                 <NavigationItem
                   label="Reports"
                   icon="▥"
-                  badge="Soon"
+                  href="/reports"
                 />
 
                 <NavigationItem
                   label="Settings"
                   icon="⚙"
-                  badge="Soon"
+                  href="/settings"
                 />
               </div>
             </nav>
@@ -435,8 +430,8 @@ async function DashboardContent() {
               <QuickAction
                 icon="📥"
                 title="Receive shipment"
-                description="Available after setup"
-                badge="Soon"
+                description="Register an expected inbound"
+                href="/inbound/new"
               />
             </div>
           </section>
@@ -690,11 +685,13 @@ async function DashboardContent() {
                   <SetupItem
                     title="Product"
                     description="Create the first SKU"
+                    href="/products/new"
                   />
 
                   <SetupItem
                     title="Inbound shipment"
                     description="Receive your first inventory"
+                    href="/inbound/new"
                   />
                 </div>
 
