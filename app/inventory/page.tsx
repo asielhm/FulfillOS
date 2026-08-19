@@ -4,7 +4,12 @@ import { MetricCard, ModuleHeading, ModuleShell } from "@/components/module-shel
 import { getWorkspaceContext } from "@/lib/workspace";
 
 export default async function InventoryPage() {
-  const { supabase, organization, membership, email } = await getWorkspaceContext();
+  const { supabase, organization, membership, email, locale } = await getWorkspaceContext();
+  const copy = locale === "es" ? {
+    eyebrow: "Visibilidad de stock", title: "Inventario", description: "Unidades disponibles calculadas desde recepciones reales, agrupadas por SKU y almacén.", action: "Ver recepciones", available: "Unidades disponibles", availableDetail: "Recibidas menos dañadas", locations: "Ubicaciones de SKU", locationsDetail: "Balances por producto y almacén", damaged: "Unidades dañadas", damagedDetail: "Excluidas del stock disponible", empty: "Aún no hay inventario", emptyDetail: "Recibe unidades en un inbound para crear el primer balance.", product: "Producto", customer: "Cliente", warehouse: "Almacén",
+  } : {
+    eyebrow: "Stock visibility", title: "Inventory", description: "Available units derived from completed receiving activity, grouped by SKU and warehouse.", action: "Review inbound", available: "Available units", availableDetail: "Received minus damaged", locations: "SKU locations", locationsDetail: "Product and warehouse balances", damaged: "Damaged units", damagedDetail: "Excluded from available stock", empty: "No inventory recorded yet", emptyDetail: "Receive units on an inbound shipment to create your first balance.", product: "Product", customer: "Customer", warehouse: "Warehouse",
+  };
 
   const [productsResult, customersResult, warehousesResult, shipmentsResult] = await Promise.all([
     supabase.from("products").select("id, customer_id, sku, title, status").eq("organization_id", organization.id),
@@ -49,28 +54,28 @@ export default async function InventoryPage() {
   return (
     <ModuleShell organizationName={organization.name} email={email} role={membership.role}>
       <ModuleHeading
-        eyebrow="Stock visibility"
-        title="Inventory"
-        description="Available units derived from completed receiving activity, grouped by SKU and warehouse."
-        action={<Link href="/inbound" className="rounded-xl bg-[#f59e0b] px-5 py-3 font-bold text-[#162033]">Review inbound</Link>}
+        eyebrow={copy.eyebrow}
+        title={copy.title}
+        description={copy.description}
+        action={<Link href="/inbound" className="rounded-xl bg-[#f59e0b] px-5 py-3 font-bold text-[#162033]">{copy.action}</Link>}
       />
       <div className="mt-8 grid gap-4 sm:grid-cols-3">
-        <MetricCard label="Available units" value={availableUnits.toLocaleString()} detail="Received minus damaged" />
-        <MetricCard label="SKU locations" value={String(rows.length)} detail="Product and warehouse balances" />
-        <MetricCard label="Damaged units" value={damagedUnits.toLocaleString()} detail="Excluded from available stock" />
+        <MetricCard label={copy.available} value={availableUnits.toLocaleString()} detail={copy.availableDetail} />
+        <MetricCard label={copy.locations} value={String(rows.length)} detail={copy.locationsDetail} />
+        <MetricCard label={copy.damaged} value={damagedUnits.toLocaleString()} detail={copy.damagedDetail} />
       </div>
 
       <section className="mt-8 overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
         {rows.length === 0 ? (
           <div className="px-6 py-16 text-center">
-            <p className="text-lg font-bold text-[#162033]">No inventory recorded yet</p>
-            <p className="mt-2 text-sm text-slate-500">Receive units on an inbound shipment to create your first balance.</p>
+            <p className="text-lg font-bold text-[#162033]">{copy.empty}</p>
+            <p className="mt-2 text-sm text-slate-500">{copy.emptyDetail}</p>
           </div>
         ) : (
           <div className="overflow-x-auto">
             <table className="w-full text-left text-sm">
               <thead className="bg-slate-50 text-xs uppercase tracking-wide text-slate-500">
-                <tr><th className="px-6 py-4">Product</th><th className="px-6 py-4">Customer</th><th className="px-6 py-4">Warehouse</th><th className="px-6 py-4 text-right">Available</th><th className="px-6 py-4 text-right">Damaged</th></tr>
+                <tr><th className="px-6 py-4">{copy.product}</th><th className="px-6 py-4">{copy.customer}</th><th className="px-6 py-4">{copy.warehouse}</th><th className="px-6 py-4 text-right">{copy.available}</th><th className="px-6 py-4 text-right">{copy.damaged}</th></tr>
               </thead>
               <tbody className="divide-y divide-slate-100">
                 {rows.map((row) => {

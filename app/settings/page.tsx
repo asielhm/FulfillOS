@@ -4,13 +4,14 @@ import { getWorkspaceContext } from "@/lib/workspace";
 type SettingsPageProps = { searchParams: Promise<{ saved?: string; error?: string }> };
 
 export default async function SettingsPage({ searchParams }: SettingsPageProps) {
-  const { organization, membership, email } = await getWorkspaceContext();
+  const { organization, membership, email, locale } = await getWorkspaceContext();
+  const es = locale === "es";
   const parameters = await searchParams;
   const canManage = ["owner", "admin"].includes(membership.role);
 
   return (
     <ModuleShell organizationName={organization.name} email={email} role={membership.role}>
-      <ModuleHeading eyebrow="Workspace administration" title="Settings" description="Manage the identity and operating context used across FulfillOS." />
+      <ModuleHeading eyebrow={es ? "Administración del workspace" : "Workspace administration"} title={es ? "Configuración" : "Settings"} description={es ? "Administra la identidad y el contexto operativo utilizado en FulfillOS." : "Manage the identity and operating context used across FulfillOS."} />
       {parameters.saved ? <div className="mt-7 rounded-xl border border-emerald-200 bg-emerald-50 p-4 text-sm font-semibold text-[#067d62]">Workspace settings saved.</div> : null}
       {parameters.error ? <div className="mt-7 rounded-xl border border-red-200 bg-red-50 p-4 text-sm text-red-700">{parameters.error}</div> : null}
       <div className="mt-8 grid gap-6 xl:grid-cols-[minmax(0,1fr)_340px]">

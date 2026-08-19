@@ -4,7 +4,8 @@ import { MetricCard, ModuleHeading, ModuleShell } from "@/components/module-shel
 import { getWorkspaceContext } from "@/lib/workspace";
 
 export default async function WorkOrdersPage() {
-  const { supabase, organization, membership, email } = await getWorkspaceContext();
+  const { supabase, organization, membership, email, locale } = await getWorkspaceContext();
+  const es = locale === "es";
   const [productsResult, customersResult] = await Promise.all([
     supabase.from("products").select("id, customer_id, sku, title, prep_notes, status").eq("organization_id", organization.id).eq("status", "active").order("title"),
     supabase.from("customers").select("id, company_name").eq("organization_id", organization.id),
@@ -17,11 +18,11 @@ export default async function WorkOrdersPage() {
 
   return (
     <ModuleShell organizationName={organization.name} email={email} role={membership.role}>
-      <ModuleHeading eyebrow="Execution queue" title="Prep & Orders" description="Turn customer-specific SKU instructions into clear, traceable work for the warehouse team." action={<Link href="/products/new" className="rounded-xl bg-[#f59e0b] px-5 py-3 font-bold text-[#162033]">+ Add prep SKU</Link>} />
+      <ModuleHeading eyebrow={es ? "Cola de ejecución" : "Execution queue"} title={es ? "Prep y órdenes" : "Prep & Orders"} description={es ? "Convierte instrucciones por SKU en trabajo claro y trazable para el equipo de almacén." : "Turn customer-specific SKU instructions into clear, traceable work for the warehouse team."} action={<Link href="/products/new" className="rounded-xl bg-[#f59e0b] px-5 py-3 font-bold text-[#162033]">{es ? "+ Agregar SKU de prep" : "+ Add prep SKU"}</Link>} />
       <div className="mt-8 grid gap-4 sm:grid-cols-3">
-        <MetricCard label="Prep requirements" value={String(requirements.length)} detail="Active SKUs with instructions" />
-        <MetricCard label="Ready to define" value={String((productsResult.data ?? []).length - requirements.length)} detail="SKUs without prep notes" />
-        <MetricCard label="Proof of work" value="Required" detail="Every future completion will be auditable" />
+        <MetricCard label={es ? "Requisitos de prep" : "Prep requirements"} value={String(requirements.length)} detail={es ? "SKUs activos con instrucciones" : "Active SKUs with instructions"} />
+        <MetricCard label={es ? "Por definir" : "Ready to define"} value={String((productsResult.data ?? []).length - requirements.length)} detail={es ? "SKUs sin notas de prep" : "SKUs without prep notes"} />
+        <MetricCard label="Proof of Work" value={es ? "Requerido" : "Required"} detail={es ? "Cada finalización será auditable" : "Every future completion will be auditable"} />
       </div>
       <section className="mt-8 rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
         <div className="flex items-center justify-between gap-4"><div><h2 className="text-xl font-extrabold text-[#162033]">Prep instruction queue</h2><p className="mt-1 text-sm text-slate-500">Operational requirements ready to become work orders.</p></div><span className="rounded-full bg-amber-100 px-3 py-1 text-xs font-bold text-amber-800">MVP queue</span></div>

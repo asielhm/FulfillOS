@@ -4,7 +4,8 @@ import { MetricCard, ModuleHeading, ModuleShell } from "@/components/module-shel
 import { getWorkspaceContext } from "@/lib/workspace";
 
 export default async function OutboundPage() {
-  const { supabase, organization, membership, email } = await getWorkspaceContext();
+  const { supabase, organization, membership, email, locale } = await getWorkspaceContext();
+  const es = locale === "es";
   const [shipmentsResult, customersResult, warehousesResult] = await Promise.all([
     supabase.from("inbound_shipments").select("id, customer_id, warehouse_id, inbound_number, status, completed_at").eq("organization_id", organization.id).is("deleted_at", null).order("completed_at", { ascending: false }),
     supabase.from("customers").select("id, company_name").eq("organization_id", organization.id),
@@ -18,7 +19,7 @@ export default async function OutboundPage() {
 
   return (
     <ModuleShell organizationName={organization.name} email={email} role={membership.role}>
-      <ModuleHeading eyebrow="Shipping readiness" title="Outbound" description="Plan customer shipments from stock that has completed receiving and is available for fulfillment." action={<Link href="/inventory" className="rounded-xl bg-[#f59e0b] px-5 py-3 font-bold text-[#162033]">View inventory</Link>} />
+      <ModuleHeading eyebrow={es ? "Preparación de envíos" : "Shipping readiness"} title={es ? "Despachos" : "Outbound"} description={es ? "Planifica envíos de clientes desde stock recibido y disponible para fulfillment." : "Plan customer shipments from stock that has completed receiving and is available for fulfillment."} action={<Link href="/inventory" className="rounded-xl bg-[#f59e0b] px-5 py-3 font-bold text-[#162033]">{es ? "Ver inventario" : "View inventory"}</Link>} />
       <div className="mt-8 grid gap-4 sm:grid-cols-3"><MetricCard label="Ready sources" value={String(eligible.length)} detail="Completed inbound shipments" /><MetricCard label="Draft shipments" value="0" detail="Outbound ledger not created yet" /><MetricCard label="Dispatched" value="0" detail="Awaiting outbound workflow" /></div>
       <section className="mt-8 rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
         <h2 className="text-xl font-extrabold text-[#162033]">Stock ready for outbound planning</h2><p className="mt-1 text-sm text-slate-500">Completed receiving records that can supply the next outbound workflow.</p>

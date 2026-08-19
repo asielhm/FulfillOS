@@ -2,46 +2,51 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { navigationMessages, type Locale } from "@/lib/i18n";
 
 type NavigationSection = {
   label: string;
   items: Array<{ label: string; icon: string; href: string }>;
 };
 
-const sections: NavigationSection[] = [
+function createSections(locale: Locale): NavigationSection[] {
+  const messages = navigationMessages[locale];
+  return [
   {
-    label: "Operations",
+    label: messages.operations,
     items: [
-      { label: "Overview", icon: "⌂", href: "/dashboard" },
-      { label: "Inbound", icon: "↓", href: "/inbound" },
-      { label: "Inventory", icon: "□", href: "/inventory" },
-      { label: "Prep & Orders", icon: "✓", href: "/work-orders" },
-      { label: "Outbound", icon: "→", href: "/outbound" },
+      { label: messages.overview, icon: "⌂", href: "/dashboard" },
+      { label: messages.inbound, icon: "↓", href: "/inbound" },
+      { label: messages.inventory, icon: "□", href: "/inventory" },
+      { label: messages.workOrders, icon: "✓", href: "/work-orders" },
+      { label: messages.outbound, icon: "→", href: "/outbound" },
     ],
   },
   {
-    label: "Management",
+    label: messages.management,
     items: [
-      { label: "Customers", icon: "♙", href: "/customers" },
-      { label: "Products", icon: "▦", href: "/products" },
-      { label: "Warehouses", icon: "⌂", href: "/warehouses" },
+      { label: messages.customers, icon: "♙", href: "/customers" },
+      { label: messages.products, icon: "▦", href: "/products" },
+      { label: messages.warehouses, icon: "⌂", href: "/warehouses" },
     ],
   },
   {
-    label: "Workspace",
+    label: messages.workspace,
     items: [
-      { label: "Reports", icon: "▥", href: "/reports" },
-      { label: "Settings", icon: "⚙", href: "/settings" },
+      { label: messages.reports, icon: "▥", href: "/reports" },
+      { label: messages.settings, icon: "⚙", href: "/settings" },
     ],
   },
-];
+  ];
+}
 
 function isActive(pathname: string, href: string) {
   return href === "/dashboard" ? pathname === href : pathname === href || pathname.startsWith(`${href}/`);
 }
 
-export function AppNavigation({ variant }: { variant: "mobile" | "desktop" }) {
+export function AppNavigation({ variant, locale }: { variant: "mobile" | "desktop"; locale: Locale }) {
   const pathname = usePathname();
+  const sections = createSections(locale);
 
   if (variant === "mobile") {
     return (

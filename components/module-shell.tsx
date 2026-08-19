@@ -3,6 +3,8 @@ import type { ReactNode } from "react";
 
 import { AppNavigation } from "@/components/app-navigation";
 import { BrandLogo } from "@/components/brand-logo";
+import { LanguageSwitcher } from "@/components/language-switcher";
+import { getLocale } from "@/lib/locale";
 
 type ModuleShellProps = {
   children: ReactNode;
@@ -11,7 +13,8 @@ type ModuleShellProps = {
   role: string;
 };
 
-export function ModuleShell({ children, organizationName, email, role }: ModuleShellProps) {
+export async function ModuleShell({ children, organizationName, email, role }: ModuleShellProps) {
+  const locale = await getLocale();
   return (
     <main className="min-h-screen bg-[#f5f7fa] text-[#111827]">
       <header className="border-b border-white/10 bg-[#162033] text-white">
@@ -19,15 +22,18 @@ export function ModuleShell({ children, organizationName, email, role }: ModuleS
           <Link href="/dashboard" aria-label="FulfillOS dashboard">
             <BrandLogo inverse />
           </Link>
-          <div className="min-w-0 text-right">
-            <p className="max-w-64 truncate text-sm font-semibold">{organizationName}</p>
-            <p className="max-w-64 truncate text-xs capitalize text-slate-300">{email} · {role}</p>
+          <div className="flex min-w-0 items-center gap-3">
+            <LanguageSwitcher locale={locale} inverse />
+            <div className="hidden min-w-0 text-right sm:block">
+              <p className="max-w-64 truncate text-sm font-semibold">{organizationName}</p>
+              <p className="max-w-64 truncate text-xs capitalize text-slate-300">{email} · {role}</p>
+            </div>
           </div>
         </div>
       </header>
-      <AppNavigation variant="mobile" />
+      <AppNavigation variant="mobile" locale={locale} />
       <div className="mx-auto flex max-w-[1600px]">
-        <AppNavigation variant="desktop" />
+        <AppNavigation variant="desktop" locale={locale} />
         <section className="min-w-0 flex-1 px-5 py-8 sm:px-8 xl:px-10">{children}</section>
       </div>
     </main>
