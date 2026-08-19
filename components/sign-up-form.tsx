@@ -16,6 +16,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { plans, type PlanId } from "@/lib/plans";
+import { GoogleIcon } from "@/components/google-icon";
 
 export function SignUpForm({
   className,
@@ -30,8 +31,28 @@ export function SignUpForm({
   const [repeatPassword, setRepeatPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
+  const [isGoogleLoading, setIsGoogleLoading] = useState(false);
   const [selectedPlan, setSelectedPlan] = useState<PlanId | "undecided">(initialPlan);
   const router = useRouter();
+
+  const handleGoogleSignUp = async () => {
+    const supabase = createClient();
+    setIsGoogleLoading(true);
+    setError(null);
+    const callback = new URL("/auth/callback", window.location.origin);
+    callback.searchParams.set("next", "/onboarding");
+    callback.searchParams.set("mode", "signup");
+    callback.searchParams.set("plan", selectedPlan);
+    if (inviteToken) callback.searchParams.set("invite", inviteToken);
+    const { error: oauthError } = await supabase.auth.signInWithOAuth({
+      provider: "google",
+      options: { redirectTo: callback.toString() },
+    });
+    if (oauthError) {
+      setError(oauthError.message);
+      setIsGoogleLoading(false);
+    }
+  };
 
   const handleSignUp = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -84,6 +105,11 @@ export function SignUpForm({
           </CardDescription>
         </CardHeader>
         <CardContent>
+          <Button type="button" variant="outline" className="h-11 w-full border-slate-300 bg-white font-semibold text-slate-800 hover:bg-slate-50" disabled={isLoading || isGoogleLoading} onClick={handleGoogleSignUp}>
+            <GoogleIcon />
+            {isGoogleLoading ? "Connecting to Google..." : inviteToken ? "Join with Google" : "Continue with Google"}
+          </Button>
+          <div className="my-6 flex items-center gap-3 text-xs font-medium uppercase tracking-wider text-slate-400"><span className="h-px flex-1 bg-slate-200" />or continue with email<span className="h-px flex-1 bg-slate-200" /></div>
           <form onSubmit={handleSignUp}>
             <div className="flex flex-col gap-6">
               {!inviteToken && <div className="grid gap-2">
@@ -146,7 +172,7 @@ export function SignUpForm({
               </div>
               <p className="-mt-3 text-xs text-slate-500">Use at least 8 characters.</p>
               {error && <p role="alert" className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">{error}</p>}
-              <Button type="submit" className="h-11 w-full bg-[#f59e0b] font-bold text-[#162033] shadow-sm hover:bg-[#fdba2d]" disabled={isLoading}>
+              <Button type="submit" className="h-11 w-full bg-[#f59e0b] font-bold text-[#162033] shadow-sm hover:bg-[#fdba2d]" disabled={isLoading || isGoogleLoading}>
                 {isLoading ? "Creating your account..." : inviteToken ? "Accept invitation" : "Create workspace"}
               </Button>
             </div>
