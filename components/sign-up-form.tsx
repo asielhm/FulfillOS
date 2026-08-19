@@ -20,9 +20,12 @@ import { plans, type PlanId } from "@/lib/plans";
 export function SignUpForm({
   className,
   initialPlan = "undecided",
+  inviteToken,
+  invitedEmail,
   ...props
-}: React.ComponentPropsWithoutRef<"div"> & { initialPlan?: PlanId | "undecided" }) {
-  const [email, setEmail] = useState("");
+}: React.ComponentPropsWithoutRef<"div"> & { initialPlan?: PlanId | "undecided"; inviteToken?: string; invitedEmail?: string }) {
+  const [email, setEmail] = useState(invitedEmail ?? "");
+  const [displayName, setDisplayName] = useState("");
   const [password, setPassword] = useState("");
   const [repeatPassword, setRepeatPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
@@ -56,6 +59,8 @@ export function SignUpForm({
             trial_plan: "control",
             trial_started_at: trialStartedAt.toISOString(),
             trial_expires_at: trialExpiresAt.toISOString(),
+            invite_token: inviteToken ?? null,
+            display_name: displayName,
           },
         },
       });
@@ -72,16 +77,16 @@ export function SignUpForm({
     <div className={cn("flex flex-col gap-6", className)} {...props}>
       <Card className="border-0 bg-white shadow-2xl shadow-slate-950/20 lg:border lg:border-slate-200 lg:shadow-xl">
         <CardHeader className="space-y-2 pb-5">
-          <p className="text-xs font-bold uppercase tracking-[0.16em] text-[#c7511f]">Start free</p>
-          <CardTitle className="text-3xl font-black tracking-tight text-[#162033]">Create your workspace</CardTitle>
+          <p className="text-xs font-bold uppercase tracking-[0.16em] text-[#c7511f]">{inviteToken ? "Team invitation" : "Start free"}</p>
+          <CardTitle className="text-3xl font-black tracking-tight text-[#162033]">{inviteToken ? "Join your team" : "Create your workspace"}</CardTitle>
           <CardDescription className="text-slate-600">
-            Get 30 days of Control access. No credit card required.
+            {inviteToken ? "Create your secure employee account to join the warehouse workspace." : "Get 30 days of Control access. No credit card required."}
           </CardDescription>
         </CardHeader>
         <CardContent>
           <form onSubmit={handleSignUp}>
             <div className="flex flex-col gap-6">
-              <div className="grid gap-2">
+              {!inviteToken && <div className="grid gap-2">
                 <Label htmlFor="selected-plan">Plan after your trial <span className="font-normal text-slate-500">(optional)</span></Label>
                 <select id="selected-plan" value={selectedPlan} onChange={(event) => setSelectedPlan(event.target.value as PlanId | "undecided")} className="h-11 rounded-md border border-slate-300 bg-white px-3 text-sm text-[#162033] focus:outline-none focus:ring-2 focus:ring-[#f59e0b]">
                   <option value="undecided">Not sure yet — help me decide</option>
@@ -89,6 +94,11 @@ export function SignUpForm({
                 </select>
                 <p className="text-xs text-slate-500">This does not commit you to a purchase. Every trial starts with temporary Control access.</p>
                 <Link href="/#pricing" className="text-xs font-bold text-[#067d62] hover:underline">Compare plans</Link>
+              </div>}
+              <div className="grid gap-2">
+                <Label htmlFor="display-name">Full name</Label>
+                <Input id="display-name" autoComplete="name" required minLength={2} maxLength={100} value={displayName} onChange={(event) => setDisplayName(event.target.value)} placeholder="Alex Morgan" className="h-11 border-slate-300 focus-visible:ring-[#f59e0b]" />
+                <p className="text-xs text-slate-500">Used in Proof of Work and operational timelines.</p>
               </div>
               <div className="grid gap-2">
                 <Label htmlFor="sign-up-email">Work email</Label>
@@ -99,6 +109,7 @@ export function SignUpForm({
                   autoComplete="email"
                   className="h-11 border-slate-300 focus-visible:ring-[#f59e0b]"
                   required
+                  readOnly={Boolean(invitedEmail)}
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
                 />
@@ -136,7 +147,7 @@ export function SignUpForm({
               <p className="-mt-3 text-xs text-slate-500">Use at least 8 characters.</p>
               {error && <p role="alert" className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">{error}</p>}
               <Button type="submit" className="h-11 w-full bg-[#f59e0b] font-bold text-[#162033] shadow-sm hover:bg-[#fdba2d]" disabled={isLoading}>
-                {isLoading ? "Creating your workspace..." : "Create workspace"}
+                {isLoading ? "Creating your account..." : inviteToken ? "Accept invitation" : "Create workspace"}
               </Button>
             </div>
             <p className="mt-4 text-center text-xs leading-5 text-slate-500">

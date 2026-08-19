@@ -42,6 +42,14 @@ async function OnboardingContent({
     redirect("/auth/login");
   }
 
+  const metadata = authData.claims.user_metadata as { invite_token?: unknown } | undefined;
+  const inviteToken = typeof metadata?.invite_token === "string" ? metadata.invite_token : null;
+  if (inviteToken) {
+    const { data: accepted, error: invitationError } = await supabase.rpc("accept_team_invitation", { p_token: inviteToken });
+    if (invitationError) throw new Error(`The team invitation could not be accepted: ${invitationError.message}`);
+    if (accepted) redirect("/dashboard");
+  }
+
   const {
     data: existingMembership,
     error: membershipError,

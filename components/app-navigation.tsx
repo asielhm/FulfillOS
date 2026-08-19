@@ -36,6 +36,7 @@ function createSections(locale: Locale): NavigationSection[] {
   {
     label: messages.workspace,
     items: [
+      { label: messages.team, icon: "♟", href: "/team" },
       { label: messages.reports, icon: "▥", href: "/reports" },
       { label: messages.settings, icon: "⚙", href: "/settings" },
     ],

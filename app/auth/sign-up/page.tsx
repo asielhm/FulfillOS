@@ -3,10 +3,12 @@ import { BrandLogo } from "@/components/brand-logo";
 import Link from "next/link";
 import { isPlanId } from "@/lib/plans";
 
-export default async function Page({ searchParams }: { searchParams: Promise<{ plan?: string | string[] }> }) {
+export default async function Page({ searchParams }: { searchParams: Promise<{ plan?: string | string[]; invite?: string | string[]; email?: string | string[] }> }) {
   const params = await searchParams;
   const requested = Array.isArray(params.plan) ? params.plan[0] : params.plan;
   const initialPlan = isPlanId(requested) ? requested : "undecided";
+  const invite = Array.isArray(params.invite) ? params.invite[0] : params.invite;
+  const invitedEmail = Array.isArray(params.email) ? params.email[0] : params.email;
   return (
     <main className="relative min-h-svh overflow-hidden bg-[#162033] text-white">
       <div className="absolute inset-0 opacity-30">
@@ -58,7 +60,7 @@ export default async function Page({ searchParams }: { searchParams: Promise<{ p
             <Link href="/" className="mb-8 flex items-center justify-center lg:hidden">
               <BrandLogo inverse />
             </Link>
-            <SignUpForm initialPlan={initialPlan} />
+            <SignUpForm initialPlan={initialPlan} inviteToken={invite} invitedEmail={invitedEmail} />
           </div>
         </section>
       </div>
