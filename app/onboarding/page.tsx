@@ -2,6 +2,7 @@ import { Suspense } from "react";
 import { redirect } from "next/navigation";
 
 import { createClient } from "@/lib/supabase/server";
+import { trialFromClaims } from "@/lib/plans";
 
 type OnboardingPageProps = {
   searchParams: Promise<{
@@ -65,6 +66,7 @@ async function OnboardingContent({
   if (existingMembership) {
     redirect("/dashboard");
   }
+  const trial = trialFromClaims(authData.claims);
 
   return (
     <main className="min-h-screen bg-[#f5f7fa] px-6 py-12">
@@ -123,6 +125,7 @@ async function OnboardingContent({
                 This information can be modified later from
                 your workspace settings.
               </p>
+              {trial?.active && <div className="mt-5 rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-900"><strong>30-day Control trial active.</strong> No credit card required · {trial.daysRemaining} days remaining.</div>}
             </div>
 
             {errorMessage && (

@@ -3,6 +3,7 @@ import { Suspense } from "react";
 import { redirect } from "next/navigation";
 
 import { createClient } from "@/lib/supabase/server";
+import { trialFromClaims } from "@/lib/plans";
 import { signOut } from "./actions";
 
 const operationCards = [
@@ -174,6 +175,7 @@ async function DashboardContent() {
     typeof authData.claims.email === "string"
       ? authData.claims.email
       : "Authenticated user";
+  const trial = trialFromClaims(authData.claims);
 
   return (
     <main className="min-h-screen bg-[#f5f7fa] text-[#111827]">
@@ -376,6 +378,8 @@ async function DashboardContent() {
               </div>
             </div>
           </div>
+
+          {trial?.active && <section className="mt-6 rounded-3xl bg-[#162033] p-6 text-white shadow-sm"><div className="flex flex-col justify-between gap-5 lg:flex-row lg:items-center"><div><p className="text-xs font-bold uppercase tracking-[0.18em] text-[#fdba2d]">Your FulfillOS Impact · Control trial</p><h2 className="mt-2 text-2xl font-black">{trial.daysRemaining} days remaining to prove operational value</h2><p className="mt-2 max-w-3xl text-sm leading-6 text-slate-300">Use real inbound activity and the Control Tower to surface exceptions. Revenue protected will appear only after billing events and rates are configured.</p></div><div className="flex flex-wrap gap-3"><Link href="/control-tower" className="inline-flex min-h-12 items-center rounded-xl bg-[#f59e0b] px-5 font-bold text-[#162033]">Open Control Tower</Link><a href={`mailto:${process.env.NEXT_PUBLIC_SUPPORT_EMAIL ?? "asielhernandezmartinez@gmail.com"}?subject=FulfillOS%2014-day%20trial%20extension`} className="inline-flex min-h-12 items-center rounded-xl border border-white/20 px-5 font-bold text-white">Request extension</a></div></div></section>}
 
           {/* Quick actions */}
 

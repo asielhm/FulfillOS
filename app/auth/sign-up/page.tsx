@@ -1,8 +1,12 @@
 import { SignUpForm } from "@/components/sign-up-form";
 import { BrandLogo } from "@/components/brand-logo";
 import Link from "next/link";
+import { isPlanId } from "@/lib/plans";
 
-export default function Page() {
+export default async function Page({ searchParams }: { searchParams: Promise<{ plan?: string | string[] }> }) {
+  const params = await searchParams;
+  const requested = Array.isArray(params.plan) ? params.plan[0] : params.plan;
+  const initialPlan = isPlanId(requested) ? requested : "undecided";
   return (
     <main className="relative min-h-svh overflow-hidden bg-[#162033] text-white">
       <div className="absolute inset-0 opacity-30">
@@ -54,7 +58,7 @@ export default function Page() {
             <Link href="/" className="mb-8 flex items-center justify-center lg:hidden">
               <BrandLogo inverse />
             </Link>
-            <SignUpForm />
+            <SignUpForm initialPlan={initialPlan} />
           </div>
         </section>
       </div>

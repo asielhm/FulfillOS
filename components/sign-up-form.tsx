@@ -15,16 +15,19 @@ import { Label } from "@/components/ui/label";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
+import { plans, type PlanId } from "@/lib/plans";
 
 export function SignUpForm({
   className,
+  initialPlan = "undecided",
   ...props
-}: React.ComponentPropsWithoutRef<"div">) {
+}: React.ComponentPropsWithoutRef<"div"> & { initialPlan?: PlanId | "undecided" }) {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [repeatPassword, setRepeatPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
+  const [selectedPlan, setSelectedPlan] = useState<PlanId | "undecided">(initialPlan);
   const router = useRouter();
 
   const handleSignUp = async (e: React.FormEvent) => {
@@ -40,11 +43,20 @@ export function SignUpForm({
     }
 
     try {
+      const trialStartedAt = new Date();
+      const trialExpiresAt = new Date(trialStartedAt.getTime() + 30 * 86_400_000);
       const { error } = await supabase.auth.signUp({
         email,
         password,
         options: {
           emailRedirectTo: `${window.location.origin}/protected`,
+          data: {
+            selected_plan: selectedPlan === "undecided" ? "starter" : selectedPlan,
+            preferred_plan: selectedPlan,
+            trial_plan: "control",
+            trial_started_at: trialStartedAt.toISOString(),
+            trial_expires_at: trialExpiresAt.toISOString(),
+          },
         },
       });
       if (error) throw error;
@@ -63,12 +75,21 @@ export function SignUpForm({
           <p className="text-xs font-bold uppercase tracking-[0.16em] text-[#c7511f]">Start free</p>
           <CardTitle className="text-3xl font-black tracking-tight text-[#162033]">Create your workspace</CardTitle>
           <CardDescription className="text-slate-600">
-            Start with your account. We&apos;ll guide you through company setup next.
+            Get 30 days of Control access. No credit card required.
           </CardDescription>
         </CardHeader>
         <CardContent>
           <form onSubmit={handleSignUp}>
             <div className="flex flex-col gap-6">
+              <div className="grid gap-2">
+                <Label htmlFor="selected-plan">Plan after your trial <span className="font-normal text-slate-500">(optional)</span></Label>
+                <select id="selected-plan" value={selectedPlan} onChange={(event) => setSelectedPlan(event.target.value as PlanId | "undecided")} className="h-11 rounded-md border border-slate-300 bg-white px-3 text-sm text-[#162033] focus:outline-none focus:ring-2 focus:ring-[#f59e0b]">
+                  <option value="undecided">Not sure yet — help me decide</option>
+                  {plans.map((plan) => <option key={plan.id} value={plan.id}>{plan.name} · ${plan.price}/month</option>)}
+                </select>
+                <p className="text-xs text-slate-500">This does not commit you to a purchase. Every trial starts with temporary Control access.</p>
+                <Link href="/#pricing" className="text-xs font-bold text-[#067d62] hover:underline">Compare plans</Link>
+              </div>
               <div className="grid gap-2">
                 <Label htmlFor="sign-up-email">Work email</Label>
                 <Input
