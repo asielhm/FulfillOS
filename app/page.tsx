@@ -1,3 +1,6 @@
+import Link from "next/link";
+import { BrandLogo } from "@/components/brand-logo";
+
 const features = [
   {
     title: "Inbound Receiving",
@@ -43,23 +46,11 @@ const stats = [
 export default function HomePage() {
   return (
     <main className="min-h-screen bg-[#f5f7fa] text-[#111827]">
-      <header className="border-b border-white/10 bg-[#162033] text-white">
+      <header className="sticky top-0 z-50 border-b border-white/10 bg-[#162033]/95 text-white shadow-sm backdrop-blur-xl">
         <div className="mx-auto flex max-w-7xl items-center justify-between px-6 py-4">
-          <a href="/" className="flex items-center gap-3">
-            <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-[#f59e0b] text-lg font-black text-[#162033]">
-              F
-            </div>
-
-            <div>
-              <p className="text-xl font-bold tracking-tight">
-                FulfillOS
-              </p>
-
-              <p className="text-xs text-slate-300">
-                Fulfillment Operations Platform
-              </p>
-            </div>
-          </a>
+          <Link href="/" aria-label="FulfillOS home">
+            <BrandLogo inverse />
+          </Link>
 
           <nav className="hidden items-center gap-7 text-sm font-medium md:flex">
             <a
@@ -76,27 +67,27 @@ export default function HomePage() {
               About
             </a>
 
-            <a
+            <Link
               href="/auth/login"
               className="rounded-lg border border-slate-500 px-4 py-2 transition hover:border-white hover:bg-white/10"
             >
               Sign in
-            </a>
+            </Link>
 
-            <a
+            <Link
               href="/auth/sign-up"
               className="rounded-lg bg-[#f59e0b] px-5 py-2 font-bold text-[#162033] transition hover:bg-[#fdba2d]"
             >
               Start free
-            </a>
+            </Link>
           </nav>
 
-          <a
+          <Link
             href="/auth/login"
             className="rounded-lg bg-[#f59e0b] px-4 py-2 text-sm font-bold text-[#162033] md:hidden"
           >
             Sign in
-          </a>
+          </Link>
         </div>
       </header>
 
@@ -127,12 +118,12 @@ export default function HomePage() {
             </p>
 
             <div className="mt-10 flex flex-wrap gap-4">
-              <a
+              <Link
                 href="/auth/sign-up"
                 className="rounded-xl bg-[#f59e0b] px-7 py-4 font-bold text-[#162033] shadow-lg shadow-orange-950/20 transition hover:-translate-y-0.5 hover:bg-[#fdba2d]"
               >
                 Create your workspace
-              </a>
+              </Link>
 
               <a
                 href="#features"
@@ -267,12 +258,12 @@ export default function HomePage() {
                   {feature.description}
                 </p>
 
-                <a
+                <Link
                   href="/auth/login"
                   className="mt-6 inline-flex text-sm font-bold text-[#c7511f]"
                 >
                   Learn more →
-                </a>
+                </Link>
               </article>
             ))}
           </div>
@@ -343,12 +334,12 @@ export default function HomePage() {
             </p>
           </div>
 
-          <a
+          <Link
             href="/auth/sign-up"
             className="rounded-xl bg-[#f59e0b] px-7 py-4 font-bold text-[#162033] transition hover:bg-[#fdba2d]"
           >
             Create an account
-          </a>
+          </Link>
         </div>
       </section>
 
