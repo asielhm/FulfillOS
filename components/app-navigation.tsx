@@ -21,6 +21,7 @@ function createSections(locale: Locale): NavigationSection[] {
       { label: messages.inventory, icon: "□", href: "/inventory" },
       { label: messages.workOrders, icon: "✓", href: "/work-orders" },
       { label: messages.outbound, icon: "→", href: "/outbound" },
+      { label: messages.scanner, icon: "⌁", href: "/scanner" },
     ],
   },
   {
@@ -29,6 +30,7 @@ function createSections(locale: Locale): NavigationSection[] {
       { label: messages.customers, icon: "♙", href: "/customers" },
       { label: messages.products, icon: "▦", href: "/products" },
       { label: messages.warehouses, icon: "⌂", href: "/warehouses" },
+      { label: messages.clientPortal, icon: "◉", href: "/client-portal" },
     ],
   },
   {

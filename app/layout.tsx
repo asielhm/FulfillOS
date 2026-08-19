@@ -1,6 +1,7 @@
 import type { Metadata, Viewport } from "next";
 import { ThemeProvider } from "next-themes";
 import "./globals.css";
+import { GlobalHelp } from "@/components/global-help";
 
 const siteUrl = process.env.NEXT_PUBLIC_SITE_URL
   ?? (process.env.VERCEL_URL
@@ -50,6 +51,7 @@ export default function RootLayout({
           disableTransitionOnChange
         >
           {children}
+          <GlobalHelp />
         </ThemeProvider>
       </body>
     </html>

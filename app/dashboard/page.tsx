@@ -710,9 +710,7 @@ async function DashboardContent() {
                     orders.
                   </p>
 
-                  <span className="mt-4 inline-flex rounded-lg bg-white/10 px-3 py-2 text-xs font-bold text-slate-200">
-                    Customer module coming next
-                  </span>
+                  <Link href="/customers/new" className="mt-4 inline-flex rounded-lg bg-[#f59e0b] px-4 py-2 text-xs font-bold text-[#162033] transition hover:bg-[#fdba2d]">Add customer →</Link>
                 </div>
               </aside>
 

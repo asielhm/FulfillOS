@@ -10,6 +10,7 @@ type ProductsPageProps = {
     customer?: string | string[];
     created?: string | string[];
     error?: string | string[];
+    imported?: string | string[];
   }>;
 };
 
@@ -43,6 +44,7 @@ async function ProductsContent({
   const pageError = Array.isArray(parameters.error)
     ? parameters.error[0]
     : parameters.error;
+  const imported = Array.isArray(parameters.imported) ? parameters.imported[0] : parameters.imported;
 
   const search = rawSearch?.trim() ?? "";
   const selectedCustomerId =
@@ -251,16 +253,7 @@ async function ProductsContent({
 
           {canManage &&
             activeCustomers.length > 0 && (
-              <Link
-                href="/products/new"
-                className="inline-flex items-center justify-center gap-2 rounded-xl bg-[#f59e0b] px-5 py-3 font-bold text-[#162033] shadow-sm transition hover:bg-[#fdba2d]"
-              >
-                <span className="text-xl">
-                  +
-                </span>
-
-                Add product
-              </Link>
+              <div className="flex flex-wrap gap-3"><Link href="/products/import" className="inline-flex items-center justify-center rounded-xl border border-slate-300 bg-white px-5 py-3 font-bold text-[#162033] hover:border-[#f59e0b]">Import file</Link><Link href="/products/new" className="inline-flex items-center justify-center gap-2 rounded-xl bg-[#f59e0b] px-5 py-3 font-bold text-[#162033] shadow-sm transition hover:bg-[#fdba2d]"><span className="text-xl">+</span>Add product</Link></div>
             )}
         </div>
 
@@ -272,6 +265,7 @@ async function ProductsContent({
             Product created successfully.
           </div>
         )}
+        {imported && <div role="status" className="mt-7 rounded-2xl border border-emerald-200 bg-emerald-50 p-4 text-sm font-medium text-emerald-800">{imported} products imported successfully.</div>}
 
         {pageError && (
           <div
