@@ -16,6 +16,7 @@ function createSections(locale: Locale): NavigationSection[] {
     label: messages.operations,
     items: [
       { label: messages.overview, icon: "⌂", href: "/dashboard" },
+      { label: messages.controlTower, icon: "!", href: "/control-tower" },
       { label: messages.inbound, icon: "↓", href: "/inbound" },
       { label: messages.inventory, icon: "□", href: "/inventory" },
       { label: messages.workOrders, icon: "✓", href: "/work-orders" },
