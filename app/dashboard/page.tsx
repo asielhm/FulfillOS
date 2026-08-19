@@ -4,6 +4,8 @@ import { redirect } from "next/navigation";
 
 import { createClient } from "@/lib/supabase/server";
 import { trialFromClaims } from "@/lib/plans";
+import { AppNavigation } from "@/components/app-navigation";
+import { getLocale } from "@/lib/locale";
 import { signOut } from "./actions";
 
 const operationCards = [
@@ -42,6 +44,7 @@ export default function DashboardPage() {
 }
 
 async function DashboardContent() {
+  const locale = await getLocale();
   const supabase = await createClient();
 
   const {
@@ -225,122 +228,10 @@ async function DashboardContent() {
         </div>
       </header>
 
-      {/* Mobile navigation */}
-
-      <div className="border-b border-slate-200 bg-white lg:hidden">
-        <div className="flex gap-2 overflow-x-auto px-4 py-3">
-          <MobileNavItem
-            label="Overview"
-            href="/dashboard"
-            active
-          />
-
-          <MobileNavItem
-            label="Inbound"
-            href="/inbound"
-          />
-
-          <MobileNavItem
-            label="Customers"
-            href="/customers"
-          />
-
-          <MobileNavItem label="Products" href="/products" />
-
-          <MobileNavItem
-            label="Inventory"
-            href="/inventory"
-          />
-        </div>
-      </div>
+      <AppNavigation variant="mobile" locale={locale} />
 
       <div className="mx-auto flex max-w-[1600px]">
-        {/* Desktop sidebar */}
-
-        <aside className="hidden min-h-[calc(100vh-76px)] w-64 shrink-0 border-r border-slate-200 bg-white p-5 lg:block">
-          <div className="sticky top-5">
-            <nav>
-              <p className="mb-3 px-4 text-xs font-bold uppercase tracking-[0.16em] text-slate-400">
-                Operations
-              </p>
-
-              <div className="space-y-1">
-                <NavigationItem
-                  label="Overview"
-                  icon="⌂"
-                  href="/dashboard"
-                  active
-                />
-
-                <NavigationItem
-  label="Inbound"
-  icon="↓"
-  href="/inbound"
-/>
-
-                <NavigationItem
-                  label="Inventory"
-                  icon="□"
-                  href="/inventory"
-                />
-
-                <NavigationItem
-                  label="Prep & Orders"
-                  icon="✓"
-                  href="/work-orders"
-                />
-
-                <NavigationItem
-                  label="Outbound"
-                  icon="→"
-                  href="/outbound"
-                />
-              </div>
-
-              <p className="mb-3 mt-8 px-4 text-xs font-bold uppercase tracking-[0.16em] text-slate-400">
-                Management
-              </p>
-
-              <div className="space-y-1">
-                <NavigationItem
-  label="Customers"
-  icon="♙"
-  href="/customers"
-/>
-
-                <NavigationItem
-                  label="Products"
-                  icon="▦"
-                  href="/products"
-                />
-
-                <NavigationItem
-                  label="Warehouses"
-                  icon="⌂"
-                  href="/warehouses"
-                />
-              </div>
-
-              <p className="mb-3 mt-8 px-4 text-xs font-bold uppercase tracking-[0.16em] text-slate-400">
-                Workspace
-              </p>
-
-              <div className="space-y-1">
-                <NavigationItem
-                  label="Reports"
-                  icon="▥"
-                  href="/reports"
-                />
-
-                <NavigationItem
-                  label="Settings"
-                  icon="⚙"
-                  href="/settings"
-                />
-              </div>
-            </nav>
-          </div>
-        </aside>
+        <AppNavigation variant="desktop" locale={locale} />
 
         {/* Main content */}
 
@@ -755,113 +646,6 @@ async function DashboardContent() {
         </section>
       </div>
     </main>
-  );
-}
-
-function NavigationItem({
-  label,
-  icon,
-  href,
-  active = false,
-  badge,
-}: {
-  label: string;
-  icon: string;
-  href?: string;
-  active?: boolean;
-  badge?: string;
-}) {
-  const content = (
-    <>
-      <span className="flex min-w-0 items-center gap-3">
-        <span className="flex w-5 shrink-0 justify-center text-base">
-          {icon}
-        </span>
-
-        <span className="truncate">
-          {label}
-        </span>
-      </span>
-
-      {badge && (
-        <span
-          className={
-            badge === "Next"
-              ? "rounded-full bg-amber-100 px-2 py-0.5 text-[10px] font-extrabold uppercase tracking-wide text-amber-800"
-              : "rounded-full bg-slate-100 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-slate-400"
-          }
-        >
-          {badge}
-        </span>
-      )}
-    </>
-  );
-
-  if (!href) {
-    return (
-      <div
-        className="flex cursor-default items-center justify-between gap-3 rounded-xl px-4 py-3 text-sm font-semibold text-slate-400"
-        title={
-          badge === "Next"
-            ? "This is the next module we are setting up."
-            : "Coming soon"
-        }
-      >
-        {content}
-      </div>
-    );
-  }
-
-  return (
-    <Link
-      href={href}
-      className={
-        active
-          ? "flex items-center justify-between gap-3 rounded-xl bg-[#162033] px-4 py-3 text-sm font-bold text-white"
-          : "flex items-center justify-between gap-3 rounded-xl px-4 py-3 text-sm font-semibold text-slate-600 transition hover:bg-slate-100 hover:text-[#162033]"
-      }
-    >
-      {content}
-    </Link>
-  );
-}
-
-function MobileNavItem({
-  label,
-  href,
-  active = false,
-  badge,
-}: {
-  label: string;
-  href?: string;
-  active?: boolean;
-  badge?: string;
-}) {
-  if (!href) {
-    return (
-      <div className="flex shrink-0 items-center gap-2 rounded-xl bg-slate-50 px-4 py-2 text-sm font-semibold text-slate-400">
-        {label}
-
-        {badge && (
-          <span className="text-[10px] font-bold uppercase text-amber-700">
-            {badge}
-          </span>
-        )}
-      </div>
-    );
-  }
-
-  return (
-    <Link
-      href={href}
-      className={
-        active
-          ? "shrink-0 rounded-xl bg-[#162033] px-4 py-2 text-sm font-bold text-white"
-          : "shrink-0 rounded-xl bg-slate-50 px-4 py-2 text-sm font-semibold text-slate-600"
-      }
-    >
-      {label}
-    </Link>
   );
 }
 
