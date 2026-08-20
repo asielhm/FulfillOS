@@ -23,6 +23,11 @@ export async function ModuleShell({ children, organizationName, email, role }: M
             <BrandLogo inverse />
           </Link>
           <div className="flex min-w-0 items-center gap-3">
+            {["owner", "admin", "manager"].includes(role) && (
+              <Link href="/floor" className="hidden min-h-10 items-center rounded-xl border border-white/20 px-3 text-xs font-bold text-white transition hover:bg-white/10 sm:inline-flex">
+                {locale === "es" ? "Modo piso" : "Floor Mode"}
+              </Link>
+            )}
             <LanguageSwitcher locale={locale} inverse />
             <div className="hidden min-w-0 text-right sm:block">
               <p className="max-w-64 truncate text-sm font-semibold">{organizationName}</p>
@@ -31,9 +36,9 @@ export async function ModuleShell({ children, organizationName, email, role }: M
           </div>
         </div>
       </header>
-      <AppNavigation variant="mobile" locale={locale} />
+      <AppNavigation variant="mobile" locale={locale} role={role} />
       <div className="mx-auto flex max-w-[1600px]">
-        <AppNavigation variant="desktop" locale={locale} />
+        <AppNavigation variant="desktop" locale={locale} role={role} />
         <section className="min-w-0 flex-1 px-5 py-8 sm:px-8 xl:px-10">{children}</section>
       </div>
     </main>

@@ -34,6 +34,7 @@ export async function getWorkspaceContext() {
 
   return {
     supabase,
+    userId: String(userId),
     organization,
     membership,
     email: typeof authData.claims.email === "string" ? authData.claims.email : "Authenticated user",

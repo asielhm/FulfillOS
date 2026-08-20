@@ -2,6 +2,7 @@ import type { Metadata, Viewport } from "next";
 import { ThemeProvider } from "next-themes";
 import "./globals.css";
 import { GlobalHelp } from "@/components/global-help";
+import { PwaRegistration } from "@/components/pwa-registration";
 
 const siteUrl = process.env.NEXT_PUBLIC_SITE_URL
   ?? (process.env.VERCEL_URL
@@ -17,6 +18,16 @@ export const metadata: Metadata = {
   description:
     "Operations, inventory and client management platform for prep centers and small 3PL companies.",
   applicationName: "FulfillOS",
+  manifest: "/manifest.webmanifest",
+  appleWebApp: {
+    capable: true,
+    statusBarStyle: "black-translucent",
+    title: "FulfillOS",
+  },
+  icons: {
+    icon: "/brand/fulfillos-mark.png",
+    apple: "/brand/fulfillos-mark.png",
+  },
   keywords: ["fulfillment", "3PL", "prep center", "warehouse operations", "inventory"],
   openGraph: {
     type: "website",
@@ -51,6 +62,7 @@ export default function RootLayout({
           disableTransitionOnChange
         >
           {children}
+          <PwaRegistration />
           <GlobalHelp />
         </ThemeProvider>
       </body>

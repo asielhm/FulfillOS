@@ -9,7 +9,7 @@ type NavigationSection = {
   items: Array<{ label: string; icon: string; href: string }>;
 };
 
-function createSections(locale: Locale): NavigationSection[] {
+function createManagerSections(locale: Locale): NavigationSection[] {
   const messages = navigationMessages[locale];
   return [
   {
@@ -44,13 +44,29 @@ function createSections(locale: Locale): NavigationSection[] {
   ];
 }
 
+function createFloorSections(locale: Locale): NavigationSection[] {
+  const es = locale === "es";
+  return [
+    {
+      label: es ? "Trabajo de piso" : "Floor work",
+      items: [
+        { label: es ? "Inicio" : "Home", icon: "⌂", href: "/floor" },
+        { label: es ? "Recibir" : "Receive", icon: "↓", href: "/floor/receive" },
+        { label: es ? "Cola de prep" : "Prep queue", icon: "✓", href: "/work-orders" },
+        { label: es ? "Scanner" : "Scanner", icon: "⌁", href: "/scanner" },
+      ],
+    },
+  ];
+}
+
 function isActive(pathname: string, href: string) {
   return href === "/dashboard" ? pathname === href : pathname === href || pathname.startsWith(`${href}/`);
 }
 
-export function AppNavigation({ variant, locale }: { variant: "mobile" | "desktop"; locale: Locale }) {
+export function AppNavigation({ variant, locale, role }: { variant: "mobile" | "desktop"; locale: Locale; role: string }) {
   const pathname = usePathname();
-  const sections = createSections(locale);
+  const floorExperience = role === "operator" || pathname.startsWith("/floor");
+  const sections = floorExperience ? createFloorSections(locale) : createManagerSections(locale);
 
   if (variant === "mobile") {
     return (
@@ -61,8 +77,8 @@ export function AppNavigation({ variant, locale }: { variant: "mobile" | "deskto
               key={item.href}
               href={item.href}
               className={isActive(pathname, item.href)
-                ? "shrink-0 rounded-xl bg-[#162033] px-4 py-2 text-sm font-bold text-white"
-                : "shrink-0 rounded-xl bg-slate-50 px-4 py-2 text-sm font-semibold text-slate-600 hover:bg-slate-100"}
+                ? "inline-flex min-h-11 shrink-0 items-center rounded-xl bg-[#162033] px-4 py-2 text-sm font-bold text-white"
+                : "inline-flex min-h-11 shrink-0 items-center rounded-xl bg-slate-50 px-4 py-2 text-sm font-semibold text-slate-600 hover:bg-slate-100"}
             >
               {item.label}
             </Link>

@@ -79,6 +79,10 @@ async function DashboardContent() {
     redirect("/onboarding");
   }
 
+  if (membership.role === "operator") {
+    redirect("/floor");
+  }
+
   const [
     organizationResult,
     warehouseCountResult,
@@ -206,6 +210,12 @@ async function DashboardContent() {
           </Link>
 
           <div className="flex items-center gap-3 sm:gap-4">
+            <Link
+              href="/floor"
+              className="hidden min-h-10 items-center rounded-xl border border-white/20 px-3 text-xs font-bold transition hover:bg-white/10 sm:inline-flex"
+            >
+              {locale === "es" ? "Modo piso" : "Floor Mode"}
+            </Link>
             <div className="hidden text-right md:block">
               <p className="max-w-60 truncate text-sm font-semibold">
                 {email}
@@ -228,10 +238,10 @@ async function DashboardContent() {
         </div>
       </header>
 
-      <AppNavigation variant="mobile" locale={locale} />
+      <AppNavigation variant="mobile" locale={locale} role={membership.role} />
 
       <div className="mx-auto flex max-w-[1600px]">
-        <AppNavigation variant="desktop" locale={locale} />
+        <AppNavigation variant="desktop" locale={locale} role={membership.role} />
 
         {/* Main content */}
 

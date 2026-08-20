@@ -2,6 +2,7 @@
 
 import type { FormEvent } from "react";
 import Link from "next/link";
+import { usePathname } from "next/navigation";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { LifeBuoy, MessageCircle, Send, Sparkles, X } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
@@ -197,6 +198,8 @@ function normalize(value: string) {
 }
 
 export function GlobalHelp() {
+  const pathname = usePathname();
+  const floorMode = pathname.startsWith("/floor");
   const [authenticated, setAuthenticated] = useState(false);
   const [userId, setUserId] = useState<string | null>(null);
   const [locale, setLocale] = useState<Locale>("en");
@@ -299,7 +302,7 @@ export function GlobalHelp() {
     <>
       {showIntro && !open && (
         <aside
-          className="fixed bottom-24 right-4 z-[69] w-[calc(100vw-2rem)] max-w-xs rounded-2xl border border-amber-200 bg-white p-4 shadow-2xl"
+          className={`${floorMode ? "bottom-44" : "bottom-24"} fixed right-4 z-[69] w-[calc(100vw-2rem)] max-w-xs rounded-2xl border border-amber-200 bg-white p-4 shadow-2xl`}
           aria-label={strings.introTitle}
         >
           <button
@@ -335,7 +338,7 @@ export function GlobalHelp() {
       {open && (
         <aside
           aria-label="FulfillOS help"
-          className="fixed bottom-24 right-4 z-[70] flex h-[min(680px,calc(100vh-8rem))] w-[calc(100vw-2rem)] max-w-md flex-col overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-2xl"
+          className={`${floorMode ? "bottom-44 h-[min(620px,calc(100vh-13rem))]" : "bottom-24 h-[min(680px,calc(100vh-8rem))]"} fixed right-4 z-[70] flex w-[calc(100vw-2rem)] max-w-md flex-col overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-2xl`}
         >
           <header className="bg-[#162033] p-5 text-white">
             <div className="flex items-start justify-between gap-4">
@@ -458,7 +461,7 @@ export function GlobalHelp() {
         onClick={open ? () => setOpen(false) : openAssistant}
         aria-label={strings.open}
         aria-expanded={open}
-        className="group fixed bottom-5 right-5 z-[70] flex h-16 w-16 items-center justify-center rounded-2xl bg-[#162033] text-[#fdba2d] shadow-[0_14px_35px_rgba(15,23,42,0.35)] ring-4 ring-white/80 transition hover:-translate-y-1 hover:bg-[#243247]"
+        className={`${floorMode ? "bottom-24" : "bottom-5"} group fixed right-5 z-[70] flex h-16 w-16 items-center justify-center rounded-2xl bg-[#162033] text-[#fdba2d] shadow-[0_14px_35px_rgba(15,23,42,0.35)] ring-4 ring-white/80 transition hover:-translate-y-1 hover:bg-[#243247]`}
       >
         {open ? <X className="h-7 w-7" /> : <MessageCircle className="h-7 w-7" />}
         {!open && (
