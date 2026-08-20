@@ -145,19 +145,35 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: error.message }, { status: 409 });
   }
 
-  const { data: updatedItem, error: updatedItemError } = await supabase
-    .from("inbound_shipment_items")
-    .select("id, expected_quantity, received_quantity, damaged_quantity")
-    .eq("id", inboundItemId)
-    .eq("organization_id", membership.organization_id)
-    .single();
+  const [
+    { data: updatedItem, error: updatedItemError },
+    { data: operationalEvent },
+  ] = await Promise.all([
+    supabase
+      .from("inbound_shipment_items")
+      .select("id, expected_quantity, received_quantity, damaged_quantity")
+      .eq("id", inboundItemId)
+      .eq("organization_id", membership.organization_id)
+      .single(),
+    supabase
+      .from("operational_events")
+      .select("id")
+      .eq("organization_id", membership.organization_id)
+      .eq("idempotency_key", idempotencyKey)
+      .maybeSingle(),
+  ]);
 
   if (updatedItemError) {
     return NextResponse.json({ error: updatedItemError.message }, { status: 500 });
   }
 
   return NextResponse.json(
-    { ok: true, result: data, item: updatedItem },
+    {
+      ok: true,
+      result: data,
+      item: updatedItem,
+      operationalEventId: operationalEvent?.id ?? null,
+    },
     { headers: { "Cache-Control": "no-store" } },
   );
 }

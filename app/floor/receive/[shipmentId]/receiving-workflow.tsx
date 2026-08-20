@@ -13,6 +13,7 @@ import {
   TriangleAlert,
 } from "lucide-react";
 
+import { PhotoEvidenceCapture } from "@/components/floor/photo-evidence-capture";
 import { QuantityInput } from "@/components/floor/quantity-input";
 import { ScanInput } from "@/components/floor/scan-input";
 import type { Locale } from "@/lib/i18n";
@@ -44,6 +45,7 @@ type ReceivingItem = {
 type ApiResult = {
   ok?: boolean;
   error?: string;
+  operationalEventId?: string | null;
   item?: {
     id: string;
     expected_quantity: number;
@@ -51,6 +53,13 @@ type ApiResult = {
     damaged_quantity: number;
   };
 };
+
+type EvidenceApiResult = {
+  ok?: boolean;
+  error?: string;
+};
+
+type PhotoStatus = "not-needed" | "uploading" | "attached" | "missing" | "failed";
 
 function normalized(value: string | null | undefined) {
   return value?.trim().toLowerCase() ?? "";
@@ -85,6 +94,7 @@ export function ReceivingWorkflow({
   const [quantity, setQuantity] = useState(0);
   const [damaged, setDamaged] = useState(0);
   const [note, setNote] = useState("");
+  const [photoFile, setPhotoFile] = useState<File | null>(null);
   const [locationMessage, setLocationMessage] = useState(
     es ? "Esperando el código de una ubicación." : "Waiting for a location code.",
   );
@@ -101,6 +111,9 @@ export function ReceivingWorkflow({
     total: number;
     damaged: number;
     location: string;
+    operationalEventId: string | null;
+    photoStatus: PhotoStatus;
+    photoError: string | null;
   } | null>(null);
 
   const activeItem = items.find((item) => item.id === activeItemId) ?? null;
@@ -166,9 +179,58 @@ export function ReceivingWorkflow({
     setQuantity(nextRemaining || 1);
     setDamaged(0);
     setNote("");
+    setPhotoFile(null);
     setProductError(false);
     setProductMessage(`${match.product.sku} · ${match.product.title}`);
     setSubmitError(null);
+  }
+
+  async function attachPhoto(operationalEventId: string, file: File) {
+    const formData = new FormData();
+    formData.set("operationalEventId", operationalEventId);
+    formData.set("context", "damaged_inbound");
+    formData.set("photo", file);
+
+    const response = await fetch("/api/floor/evidence", {
+      method: "POST",
+      body: formData,
+    });
+    const result = (await response.json()) as EvidenceApiResult;
+    if (!response.ok || !result.ok) {
+      throw new Error(
+        result.error ??
+          (es ? "No se pudo guardar la foto." : "The photo could not be saved."),
+      );
+    }
+  }
+
+  async function retryPhotoEvidence() {
+    if (!success?.operationalEventId || !photoFile) return;
+    setSuccess((current) =>
+      current ? { ...current, photoStatus: "uploading", photoError: null } : current,
+    );
+    try {
+      await attachPhoto(success.operationalEventId, photoFile);
+      setSuccess((current) =>
+        current ? { ...current, photoStatus: "attached", photoError: null } : current,
+      );
+      setPhotoFile(null);
+    } catch (error) {
+      setSuccess((current) =>
+        current
+          ? {
+              ...current,
+              photoStatus: "failed",
+              photoError:
+                error instanceof Error
+                  ? error.message
+                  : es
+                    ? "No se pudo guardar la foto."
+                    : "The photo could not be saved.",
+            }
+          : current,
+      );
+    }
   }
 
   async function receive() {
@@ -226,11 +288,26 @@ export function ReceivingWorkflow({
             : item,
         ),
       );
+      const operationalEventId = result.operationalEventId ?? null;
+      const shouldAttachPhoto = damaged > 0 && Boolean(photoFile);
       setSuccess({
         sku: activeItem.product.sku,
         total: quantity,
         damaged,
         location: location.code,
+        operationalEventId,
+        photoStatus:
+          damaged === 0
+            ? "not-needed"
+            : shouldAttachPhoto && operationalEventId
+              ? "uploading"
+              : "missing",
+        photoError:
+          damaged > 0 && shouldAttachPhoto && !operationalEventId
+            ? es
+              ? "La recepción se guardó, pero no se pudo vincular la foto al evento operacional."
+              : "The receipt was saved, but the photo could not be linked to its operational event."
+            : null,
       });
       setActiveItemId(null);
       setQuantity(0);
@@ -240,6 +317,33 @@ export function ReceivingWorkflow({
         es ? "Escaneá el próximo producto." : "Scan the next product.",
       );
       setIdempotencyKey(newIdempotencyKey());
+
+      if (shouldAttachPhoto && operationalEventId && photoFile) {
+        try {
+          await attachPhoto(operationalEventId, photoFile);
+          setSuccess((current) =>
+            current ? { ...current, photoStatus: "attached", photoError: null } : current,
+          );
+          setPhotoFile(null);
+        } catch (error) {
+          setSuccess((current) =>
+            current
+              ? {
+                  ...current,
+                  photoStatus: "failed",
+                  photoError:
+                    error instanceof Error
+                      ? error.message
+                      : es
+                        ? "La recepción está confirmada, pero la foto no se guardó."
+                        : "The receipt is confirmed, but the photo was not saved.",
+                }
+              : current,
+          );
+        }
+      } else if (damaged === 0) {
+        setPhotoFile(null);
+      }
       router.refresh();
     } catch (error) {
       setSubmitError(
@@ -307,14 +411,14 @@ export function ReceivingWorkflow({
       </section>
 
       {success ? (
-        <section role="status" className="mt-5 rounded-3xl border-2 border-emerald-300 bg-emerald-50 p-6 text-emerald-950 shadow-sm">
+        <section aria-labelledby="receipt-success-title" className="mt-5 rounded-3xl border-2 border-emerald-300 bg-emerald-50 p-6 text-emerald-950 shadow-sm">
           <div className="flex items-start gap-4">
             <CheckCircle2 className="h-10 w-10 shrink-0 text-emerald-600" />
             <div>
-              <p className="text-xs font-black uppercase tracking-[0.16em] text-emerald-700">
+              <p role="status" className="text-xs font-black uppercase tracking-[0.16em] text-emerald-700">
                 {es ? "Recepción confirmada" : "Receipt confirmed"}
               </p>
-              <h2 className="mt-1 text-2xl font-black">
+              <h2 id="receipt-success-title" className="mt-1 text-2xl font-black">
                 {success.total} {es ? "unidades" : "units"} · {success.sku}
               </h2>
               <p className="mt-2 text-sm font-semibold">
@@ -322,18 +426,58 @@ export function ReceivingWorkflow({
               </p>
               <div className="mt-4 flex flex-wrap gap-2 text-xs font-bold">
                 <span className="rounded-full bg-white px-3 py-2">✓ {es ? "Servidor confirmado" : "Server confirmed"}</span>
-                <span className="rounded-full bg-white px-3 py-2">✓ Proof of Work</span>
+                <span className="rounded-full bg-white px-3 py-2">
+                  {success.photoStatus === "attached"
+                    ? `✓ ${es ? "Foto adjunta" : "Photo attached"}`
+                    : success.photoStatus === "not-needed"
+                      ? "✓ Proof of Work"
+                      : success.photoStatus === "uploading"
+                        ? `… ${es ? "Guardando foto" : "Saving photo"}`
+                        : `! ${es ? "Foto pendiente" : "Photo pending"}`}
+                </span>
                 <span className="rounded-full bg-white px-3 py-2">✓ Revenue Protection</span>
               </div>
+              {success.damaged > 0 && ["missing", "failed"].includes(success.photoStatus) ? (
+                <div className="mt-4 rounded-2xl border border-amber-300 bg-amber-50 p-4 text-amber-950">
+                  <p className="text-sm font-black">
+                    {es
+                      ? "La recepción está guardada. Falta la evidencia fotográfica."
+                      : "The receipt is saved. Photo evidence is still missing."}
+                  </p>
+                  {success.photoError ? (
+                    <p className="mt-1 text-xs font-semibold leading-5">{success.photoError}</p>
+                  ) : null}
+                  {success.operationalEventId ? (
+                    <>
+                      <PhotoEvidenceCapture locale={es ? "es" : "en"} file={photoFile} onChange={setPhotoFile} />
+                      <button
+                        type="button"
+                        disabled={!photoFile}
+                        onClick={() => void retryPhotoEvidence()}
+                        className="mt-3 min-h-12 w-full rounded-xl bg-amber-600 px-5 font-black text-white disabled:cursor-not-allowed disabled:opacity-50"
+                      >
+                        {es ? "ADJUNTAR A ESTA RECEPCIÓN" : "ATTACH TO THIS RECEIPT"}
+                      </button>
+                    </>
+                  ) : null}
+                </div>
+              ) : null}
             </div>
           </div>
-          <button type="button" onClick={() => setSuccess(null)} className="mt-5 min-h-12 w-full rounded-xl bg-emerald-700 px-5 font-black text-white">
+          <button
+            type="button"
+            onClick={() => {
+              setSuccess(null);
+              setPhotoFile(null);
+            }}
+            className="mt-5 min-h-12 w-full rounded-xl bg-emerald-700 px-5 font-black text-white"
+          >
             {es ? "RECIBIR PRÓXIMO PRODUCTO" : "RECEIVE NEXT PRODUCT"}
           </button>
         </section>
       ) : null}
 
-      <div className="mt-5 grid gap-5 lg:grid-cols-2">
+      <div className={success ? "hidden" : "mt-5 grid gap-5 lg:grid-cols-2"}>
         <section className="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm sm:p-6">
           <div className="flex items-center gap-3">
             <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-amber-100 font-black text-amber-800">1</span>
@@ -452,11 +596,7 @@ export function ReceivingWorkflow({
                 placeholder={es ? "Ej.: caja aplastada, sello roto…" : "Example: crushed carton, broken seal…"}
                 className="mt-2 w-full rounded-xl border border-red-200 bg-white p-3 text-base outline-none focus:border-red-400"
               />
-              <p className="mt-2 text-xs font-semibold text-red-700">
-                {es
-                  ? "La nota se conserva como evidencia. La captura fotográfica segura se añadirá en la fase de Storage."
-                  : "The note is retained as evidence. Secure photo capture will follow in the Storage phase."}
-              </p>
+              <PhotoEvidenceCapture locale={es ? "es" : "en"} file={photoFile} onChange={setPhotoFile} />
             </div>
           ) : null}
 
@@ -491,8 +631,8 @@ export function ReceivingWorkflow({
           <div className="mt-4 flex items-center justify-center gap-2 text-xs font-bold text-slate-500">
             <ShieldCheck className="h-4 w-4 text-[#067d62]" />
             {es
-              ? "Inventario, evidencia y facturación se confirman juntos."
-              : "Inventory, evidence, and billing are confirmed together."}
+              ? "Inventario, Proof of Work y facturación permanecen vinculados."
+              : "Inventory, Proof of Work, and billing capture stay linked."}
           </div>
         </section>
       ) : null}
