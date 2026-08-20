@@ -96,7 +96,11 @@ export default async function InventoryPage() {
           </div>
         )}
       </section>
-      <p className="mt-4 text-xs text-slate-500">Inventory is currently calculated from inbound receiving. Location-level movements and outbound deductions are the next ledger upgrade.</p>
+      <p className="mt-4 text-xs text-slate-500">
+        {locale === "es"
+          ? "Los totales por almacén provienen de recepciones confirmadas. Los movimientos entre ubicaciones quedan registrados en el ledger inmutable con Proof of Work."
+          : "Warehouse totals come from confirmed receiving. Moves between locations are recorded in the immutable ledger with Proof of Work."}
+      </p>
     </ModuleShell>
   );
 }

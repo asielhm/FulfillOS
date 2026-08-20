@@ -52,6 +52,7 @@ function createFloorSections(locale: Locale): NavigationSection[] {
       items: [
         { label: es ? "Inicio" : "Home", icon: "⌂", href: "/floor" },
         { label: es ? "Recibir" : "Receive", icon: "↓", href: "/floor/receive" },
+        { label: es ? "Mover" : "Move", icon: "↔", href: "/floor/move" },
         { label: es ? "Cola de prep" : "Prep queue", icon: "✓", href: "/work-orders" },
         { label: es ? "Scanner" : "Scanner", icon: "⌁", href: "/scanner" },
       ],

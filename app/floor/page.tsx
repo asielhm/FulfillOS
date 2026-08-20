@@ -43,9 +43,10 @@ export default async function FloorHomePage() {
     },
     {
       label: es ? "MOVER" : "MOVE",
-      detail: es ? "Próxima fase" : "Next phase",
+      detail: es ? "Escanear ubicaciones y stock" : "Scan locations and stock",
+      href: "/floor/move",
       icon: ArrowLeftRight,
-      active: false,
+      active: true,
     },
     {
       label: es ? "CONTAR" : "COUNT",

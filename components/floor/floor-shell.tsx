@@ -1,6 +1,6 @@
 import type { ReactNode } from "react";
 import Link from "next/link";
-import { ClipboardList, Home, LayoutDashboard, ScanLine, UserRound } from "lucide-react";
+import { ArrowLeftRight, ClipboardList, Home, LayoutDashboard, ScanLine, UserRound } from "lucide-react";
 
 import { BrandLogo } from "@/components/brand-logo";
 import { LanguageSwitcher } from "@/components/language-switcher";
@@ -62,9 +62,10 @@ export function FloorShell({
         aria-label={es ? "Navegación de piso" : "Floor navigation"}
         className="fixed inset-x-0 bottom-0 z-50 border-t border-slate-200 bg-white/95 px-2 pb-[max(0.5rem,env(safe-area-inset-bottom))] pt-2 shadow-[0_-8px_30px_rgba(15,23,42,0.12)] backdrop-blur"
       >
-        <div className="mx-auto grid max-w-lg grid-cols-4 gap-1">
+        <div className="mx-auto grid max-w-xl grid-cols-5 gap-1">
           <FloorNavItem href="/floor" label={es ? "Inicio" : "Home"} icon={<Home className="h-5 w-5" />} />
           <FloorNavItem href="/floor/receive" label={es ? "Recibir" : "Receive"} icon={<ClipboardList className="h-5 w-5" />} />
+          <FloorNavItem href="/floor/move" label={es ? "Mover" : "Move"} icon={<ArrowLeftRight className="h-5 w-5" />} />
           <FloorNavItem href="/scanner" label="Scan" icon={<ScanLine className="h-5 w-5" />} />
           <FloorNavItem href="/floor/me" label={es ? "Yo" : "Me"} icon={<UserRound className="h-5 w-5" />} />
         </div>

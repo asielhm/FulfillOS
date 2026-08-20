@@ -13,12 +13,14 @@ export function ScanInput({
   placeholder,
   state,
   autoFocus = false,
+  disabled = false,
   onScan,
 }: {
   label: string;
   placeholder: string;
   state: ScanState;
   autoFocus?: boolean;
+  disabled?: boolean;
   onScan: (value: string) => void;
 }) {
   const [value, setValue] = useState("");
@@ -29,6 +31,7 @@ export function ScanInput({
   }, [autoFocus, state.kind]);
 
   function submit() {
+    if (disabled) return;
     const normalized = value.trim();
     if (!normalized) return;
     onScan(normalized);
@@ -57,14 +60,16 @@ export function ScanInput({
           autoComplete="off"
           autoCapitalize="off"
           spellCheck={false}
+          disabled={disabled}
           inputMode="text"
           placeholder={placeholder}
-          className="min-h-16 w-full rounded-2xl border-2 border-slate-300 bg-white py-3 pl-14 pr-24 font-mono text-lg font-bold text-[#162033] outline-none transition focus:border-[#f59e0b]"
+          className="min-h-16 w-full rounded-2xl border-2 border-slate-300 bg-white py-3 pl-14 pr-24 font-mono text-lg font-bold text-[#162033] outline-none transition focus:border-[#f59e0b] disabled:cursor-not-allowed disabled:bg-slate-100 disabled:text-slate-400"
         />
         <button
           type="button"
           onClick={submit}
-          className="absolute right-2 top-2 min-h-12 rounded-xl bg-[#162033] px-4 text-sm font-black text-white"
+          disabled={disabled}
+          className="absolute right-2 top-2 min-h-12 rounded-xl bg-[#162033] px-4 text-sm font-black text-white disabled:cursor-not-allowed disabled:bg-slate-400"
         >
           Scan
         </button>
