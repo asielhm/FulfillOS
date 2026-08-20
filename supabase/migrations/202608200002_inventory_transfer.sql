@@ -13,7 +13,7 @@ create or replace function public.move_inventory_units(
 ) returns jsonb
 language plpgsql
 security definer
-set search_path = public, auth, pg_temp
+set search_path = ''
 as $$
 declare
   v_user_id uuid := auth.uid();
@@ -334,4 +334,5 @@ end;
 $$;
 
 revoke all on function public.move_inventory_units(uuid, text, text, text, integer, text, text) from public;
+revoke all on function public.move_inventory_units(uuid, text, text, text, integer, text, text) from anon;
 grant execute on function public.move_inventory_units(uuid, text, text, text, integer, text, text) to authenticated;
