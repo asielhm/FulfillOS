@@ -5,6 +5,7 @@ import {
   redirect,
 } from "next/navigation";
 
+import { ModuleShell } from "@/components/module-shell";
 import { createClient } from "@/lib/supabase/server";
 
 type InboundDetailProps = {
@@ -132,11 +133,18 @@ async function InboundDetailContent({
   }
 
   const [
+    organizationResult,
     customerResult,
     warehouseResult,
     itemsResult,
     locationsResult,
   ] = await Promise.all([
+    supabase
+      .from("organizations")
+      .select("name")
+      .eq("id", membership.organization_id)
+      .single(),
+
     supabase
       .from("customers")
       .select(
@@ -187,13 +195,16 @@ async function InboundDetailContent({
   ]);
 
   if (
+    organizationResult.error ||
     customerResult.error ||
     warehouseResult.error ||
     itemsResult.error ||
     locationsResult.error
   ) {
     throw new Error(
-      customerResult.error
+      organizationResult.error
+        ?.message ??
+        customerResult.error
         ?.message ??
         warehouseResult.error
           ?.message ??
@@ -375,26 +386,19 @@ async function InboundDetailContent({
     0;
 
   return (
-    <main className="min-h-screen bg-[#f5f7fa]">
-      <header className="border-b border-slate-200 bg-white">
-        <div className="mx-auto flex max-w-7xl items-center justify-between px-6 py-4">
-          <Link
-            href="/inbound"
-            className="font-bold text-[#162033]"
-          >
-            ← All inbound
-          </Link>
+    <ModuleShell
+      organizationName={organizationResult.data.name}
+      email={email}
+      role={membership.role}
+    >
+      <div className="mx-auto max-w-7xl">
+        <Link
+          href="/inbound"
+          className="mb-6 inline-flex min-h-11 items-center font-bold text-[#162033] hover:text-[#c7511f]"
+        >
+          ← All inbound
+        </Link>
 
-          <Link
-            href="/dashboard"
-            className="rounded-xl border border-slate-300 px-4 py-2 text-sm font-bold text-[#162033]"
-          >
-            Dashboard
-          </Link>
-        </div>
-      </header>
-
-      <div className="mx-auto max-w-7xl px-6 py-10">
         {created === "1" && (
           <div className="mb-6 rounded-xl border border-emerald-200 bg-emerald-50 p-4 text-sm font-medium text-emerald-800">
             Inbound shipment created
@@ -790,7 +794,7 @@ async function InboundDetailContent({
           </div>
         </div>
       </div>
-    </main>
+    </ModuleShell>
   );
 }
 

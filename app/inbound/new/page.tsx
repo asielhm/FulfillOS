@@ -2,6 +2,7 @@ import Link from "next/link";
 import { Suspense } from "react";
 import { redirect } from "next/navigation";
 
+import { ModuleShell } from "@/components/module-shell";
 import { createClient } from "@/lib/supabase/server";
 import { InboundForm } from "./inbound-form";
 
@@ -185,8 +186,17 @@ async function NewInboundContent({
     );
   }
 
+  const email =
+    typeof authData.claims.email === "string"
+      ? authData.claims.email
+      : "Authenticated user";
+
   return (
-    <main className="min-h-screen bg-[#f5f7fa] px-6 py-10">
+    <ModuleShell
+      organizationName={organizationResult.data.name}
+      email={email}
+      role={membership.role}
+    >
       <div className="mx-auto max-w-4xl">
         <Link
           href="/inbound"
@@ -250,7 +260,7 @@ async function NewInboundContent({
           </div>
         </section>
       </div>
-    </main>
+    </ModuleShell>
   );
 }
 

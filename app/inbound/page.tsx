@@ -2,6 +2,7 @@ import Link from "next/link";
 import { Suspense } from "react";
 import { redirect } from "next/navigation";
 
+import { ModuleShell } from "@/components/module-shell";
 import { createClient } from "@/lib/supabase/server";
 
 type InboundPageProps = {
@@ -287,33 +288,18 @@ async function InboundContent({
     "manager",
   ].includes(membership.role);
 
+  const email =
+    typeof authData.claims.email === "string"
+      ? authData.claims.email
+      : "Authenticated user";
+
   return (
-    <main className="min-h-screen bg-[#f5f7fa]">
-      <header className="border-b border-slate-200 bg-white">
-        <div className="mx-auto flex max-w-7xl items-center justify-between gap-4 px-6 py-4">
-          <div>
-            <p className="font-extrabold text-[#162033]">
-              FulfillOS
-            </p>
-
-            <p className="text-sm text-slate-500">
-              {
-                organizationResult
-                  .data.name
-              }
-            </p>
-          </div>
-
-          <Link
-            href="/dashboard"
-            className="rounded-xl border border-slate-300 px-4 py-2 text-sm font-bold text-[#162033]"
-          >
-            Dashboard
-          </Link>
-        </div>
-      </header>
-
-      <div className="mx-auto max-w-7xl px-6 py-10">
+    <ModuleShell
+      organizationName={organizationResult.data.name}
+      email={email}
+      role={membership.role}
+    >
+      <div className="mx-auto max-w-7xl">
         <div className="flex flex-col justify-between gap-6 md:flex-row md:items-end">
           <div>
             <p className="text-sm font-bold uppercase tracking-[0.18em] text-[#c7511f]">
@@ -560,7 +546,7 @@ async function InboundContent({
           </section>
         )}
       </div>
-    </main>
+    </ModuleShell>
   );
 }
 
