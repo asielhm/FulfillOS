@@ -105,6 +105,15 @@ export function SignUpForm({
           </CardDescription>
         </CardHeader>
         <CardContent>
+          {!inviteToken && <div className="mb-6 grid gap-2 rounded-2xl border border-amber-200 bg-amber-50/70 p-4">
+            <Label htmlFor="selected-plan">Plan after your trial <span className="font-normal text-slate-500">(optional)</span></Label>
+            <select id="selected-plan" value={selectedPlan} onChange={(event) => setSelectedPlan(event.target.value as PlanId | "undecided")} className="h-11 rounded-md border border-slate-300 bg-white px-3 text-sm text-[#162033] focus:outline-none focus:ring-2 focus:ring-[#f59e0b]">
+              <option value="undecided">Not sure yet — help me decide</option>
+              {plans.map((plan) => <option key={plan.id} value={plan.id}>{plan.name} · ${plan.price}/month</option>)}
+            </select>
+            <p className="text-xs leading-5 text-slate-500">This does not commit you to a purchase. Every trial starts with temporary Control access.</p>
+            <Link href="/#pricing" className="text-xs font-bold text-[#067d62] hover:underline">Compare plans</Link>
+          </div>}
           <Button type="button" variant="outline" className="h-11 w-full border-slate-300 bg-white font-semibold text-slate-800 hover:bg-slate-50" disabled={isLoading || isGoogleLoading} onClick={handleGoogleSignUp}>
             <GoogleIcon />
             {isGoogleLoading ? "Connecting to Google..." : inviteToken ? "Join with Google" : "Continue with Google"}
@@ -112,15 +121,6 @@ export function SignUpForm({
           <div className="my-6 flex items-center gap-3 text-xs font-medium uppercase tracking-wider text-slate-400"><span className="h-px flex-1 bg-slate-200" />or continue with email<span className="h-px flex-1 bg-slate-200" /></div>
           <form onSubmit={handleSignUp}>
             <div className="flex flex-col gap-6">
-              {!inviteToken && <div className="grid gap-2">
-                <Label htmlFor="selected-plan">Plan after your trial <span className="font-normal text-slate-500">(optional)</span></Label>
-                <select id="selected-plan" value={selectedPlan} onChange={(event) => setSelectedPlan(event.target.value as PlanId | "undecided")} className="h-11 rounded-md border border-slate-300 bg-white px-3 text-sm text-[#162033] focus:outline-none focus:ring-2 focus:ring-[#f59e0b]">
-                  <option value="undecided">Not sure yet — help me decide</option>
-                  {plans.map((plan) => <option key={plan.id} value={plan.id}>{plan.name} · ${plan.price}/month</option>)}
-                </select>
-                <p className="text-xs text-slate-500">This does not commit you to a purchase. Every trial starts with temporary Control access.</p>
-                <Link href="/#pricing" className="text-xs font-bold text-[#067d62] hover:underline">Compare plans</Link>
-              </div>}
               <div className="grid gap-2">
                 <Label htmlFor="display-name">Full name</Label>
                 <Input id="display-name" autoComplete="name" required minLength={2} maxLength={100} value={displayName} onChange={(event) => setDisplayName(event.target.value)} placeholder="Alex Morgan" className="h-11 border-slate-300 focus-visible:ring-[#f59e0b]" />
