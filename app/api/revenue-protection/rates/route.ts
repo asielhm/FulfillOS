@@ -79,10 +79,12 @@ export async function POST(request: NextRequest) {
   const revenueCaptured = safeAmount(result.revenue_captured);
 
   revalidatePath("/revenue-protection");
+  revalidatePath("/service-rates");
   revalidatePath("/control-tower");
 
-  const url = new URL("/revenue-protection", request.url);
+  const url = new URL("/service-rates", request.url);
   url.searchParams.set("saved", "1");
+  url.searchParams.set("scope", "customer");
   url.searchParams.set("events", String(eventsPriced));
   url.searchParams.set("exceptions", String(exceptionsResolved));
   url.searchParams.set("value", revenueCaptured.toFixed(2));
@@ -90,7 +92,7 @@ export async function POST(request: NextRequest) {
 }
 
 function redirectWithError(request: NextRequest, message: string) {
-  const url = new URL("/revenue-protection", request.url);
+  const url = new URL("/service-rates", request.url);
   url.searchParams.set("error", message);
   return NextResponse.redirect(url, { status: 303 });
 }

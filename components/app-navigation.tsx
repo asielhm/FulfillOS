@@ -29,6 +29,7 @@ function createManagerSections(locale: Locale): NavigationSection[] {
   {
     label: messages.management,
     items: [
+      { label: messages.serviceRates, icon: "≋", href: "/service-rates" },
       { label: messages.customers, icon: "♙", href: "/customers" },
       { label: messages.products, icon: "▦", href: "/products" },
       { label: messages.warehouses, icon: "⌂", href: "/warehouses" },
