@@ -6,6 +6,11 @@ import {
 } from "next/navigation";
 
 import { ModuleShell } from "@/components/module-shell";
+import {
+  ProofOfWorkTimeline,
+  type ProofEventView,
+} from "@/components/proof-of-work-timeline";
+import { getLocale } from "@/lib/locale";
 import { createClient } from "@/lib/supabase/server";
 
 type InboundDetailProps = {
@@ -50,6 +55,9 @@ async function InboundDetailContent({
 
   const supabase =
     await createClient();
+
+  const locale = await getLocale();
+  const es = locale === "es";
 
   const {
     data: authData,
@@ -186,7 +194,7 @@ async function InboundDetailContent({
 
     supabase
       .from("warehouse_locations")
-      .select("id")
+      .select("id, name, code")
       .eq(
         "warehouse_id",
         shipment.warehouse_id,
@@ -260,6 +268,32 @@ async function InboundDetailContent({
 
   const itemIds =
     items.map((item) => item.id);
+
+  let operationalEvents: {
+    id: string;
+    event_type: string;
+    entity_id: string;
+    actor_user_id: string | null;
+    metadata: unknown;
+    happened_at: string;
+  }[] = [];
+
+  if (itemIds.length > 0) {
+    const result = await supabase
+      .from("operational_events")
+      .select("id, event_type, entity_id, actor_user_id, metadata, happened_at")
+      .eq("organization_id", membership.organization_id)
+      .eq("entity_type", "inbound_shipment_item")
+      .in("entity_id", itemIds)
+      .order("happened_at", { ascending: false })
+      .limit(100);
+
+    if (result.error) {
+      throw new Error(result.error.message);
+    }
+
+    operationalEvents = result.data ?? [];
+  }
 
   const shipmentAuditResult =
     await supabase
@@ -352,12 +386,162 @@ async function InboundDetailContent({
       ).getTime(),
   );
 
+  const operationalEventIds = operationalEvents.map((event) => event.id);
+  let evidence: {
+    id: string;
+    operational_event_id: string;
+    evidence_type: string;
+    storage_bucket: string | null;
+    storage_path: string | null;
+    text_value: string | null;
+    captured_by: string | null;
+    captured_at: string;
+  }[] = [];
+
+  if (operationalEventIds.length > 0) {
+    const result = await supabase
+      .from("proof_of_work_evidence")
+      .select(
+        "id, operational_event_id, evidence_type, storage_bucket, storage_path, text_value, captured_by, captured_at",
+      )
+      .eq("organization_id", membership.organization_id)
+      .in("operational_event_id", operationalEventIds)
+      .order("captured_at", { ascending: true })
+      .limit(250);
+
+    if (result.error) {
+      throw new Error(result.error.message);
+    }
+
+    evidence = result.data ?? [];
+  }
+
+  const teamUserIds = Array.from(
+    new Set(
+      [
+        ...auditEvents.map((event) => event.actor_user_id),
+        ...operationalEvents.map((event) => event.actor_user_id),
+        ...evidence.map((item) => item.captured_by),
+      ].filter((value): value is string => Boolean(value)),
+    ),
+  );
+
+  let teamProfiles: {
+    user_id: string;
+    display_name: string;
+    email: string | null;
+  }[] = [];
+
+  if (teamUserIds.length > 0) {
+    const result = await supabase
+      .from("team_profiles")
+      .select("user_id, display_name, email")
+      .eq("organization_id", membership.organization_id)
+      .in("user_id", teamUserIds);
+
+    if (result.error) {
+      throw new Error(result.error.message);
+    }
+
+    teamProfiles = result.data ?? [];
+  }
+
+  const teamMap = new Map(
+    teamProfiles.map((profile) => [
+      profile.user_id,
+      profile.display_name || profile.email || (es ? "Miembro del equipo" : "Team member"),
+    ]),
+  );
+
+  const signedPhotoUrls = new Map<string, string>();
+  const photosByBucket = new Map<string, { id: string; path: string }[]>();
+
+  for (const item of evidence) {
+    if (!item.storage_bucket || !item.storage_path) continue;
+    const bucketPhotos = photosByBucket.get(item.storage_bucket) ?? [];
+    bucketPhotos.push({ id: item.id, path: item.storage_path });
+    photosByBucket.set(item.storage_bucket, bucketPhotos);
+  }
+
+  await Promise.all(
+    Array.from(photosByBucket.entries()).map(async ([bucket, photos]) => {
+      const result = await supabase.storage
+        .from(bucket)
+        .createSignedUrls(
+          photos.map((photo) => photo.path),
+          60 * 60,
+        );
+
+      if (result.error) {
+        console.error("Proof of Work signed URL creation failed", result.error);
+        return;
+      }
+
+      result.data.forEach((signed, index) => {
+        if (signed.signedUrl) {
+          signedPhotoUrls.set(photos[index].id, signed.signedUrl);
+        }
+      });
+    }),
+  );
+
   const itemMap = new Map(
     items.map((item) => [
       item.id,
       item,
     ]),
   );
+
+  const evidenceByEvent = new Map<string, typeof evidence>();
+  for (const item of evidence) {
+    const eventEvidence = evidenceByEvent.get(item.operational_event_id) ?? [];
+    eventEvidence.push(item);
+    evidenceByEvent.set(item.operational_event_id, eventEvidence);
+  }
+
+  const locationMap = new Map(
+    (locationsResult.data ?? []).map((location) => [
+      location.id,
+      `${location.name}${location.code ? ` · ${location.code}` : ""}`,
+    ]),
+  );
+
+  const proofEvents: ProofEventView[] = operationalEvents.map((event) => {
+    const metadata = asRecord(event.metadata);
+    const item = itemMap.get(event.entity_id);
+    const product = item ? productMap.get(item.product_id) : undefined;
+    const locationId = asText(metadata.location_id);
+    const locationName = asText(metadata.location_name);
+
+    return {
+      id: event.id,
+      eventType: event.event_type,
+      happenedAt: event.happened_at,
+      actor: event.actor_user_id
+        ? teamMap.get(event.actor_user_id) ?? (es ? "Miembro del equipo" : "Team member")
+        : "FulfillOS",
+      productTitle: product?.title ?? (es ? "Producto" : "Product"),
+      sku: product?.sku ?? "—",
+      receivedQuantity: asNumber(metadata.received_increment),
+      goodQuantity: asNumber(metadata.good_increment),
+      damagedQuantity: asNumber(metadata.damaged_increment),
+      location:
+        (locationId ? locationMap.get(locationId) : undefined) ??
+        locationName ??
+        (es ? "Ubicación registrada" : "Recorded location"),
+      note: asText(metadata.note),
+      evidence: (evidenceByEvent.get(event.id) ?? []).map((proof) => ({
+        id: proof.id,
+        type: proof.evidence_type,
+        text: proof.text_value,
+        capturedAt: proof.captured_at,
+        capturedBy: proof.captured_by
+          ? teamMap.get(proof.captured_by) ?? (es ? "Miembro del equipo" : "Team member")
+          : "FulfillOS",
+        photoUrl: signedPhotoUrls.get(proof.id) ?? null,
+      })),
+    };
+  });
 
   const totals =
     items.reduce(
@@ -534,28 +718,28 @@ async function InboundDetailContent({
               </div>
             </section>
 
+            <ProofOfWorkTimeline locale={locale} events={proofEvents} />
+
             <section className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
               <p className="text-sm font-bold uppercase tracking-[0.16em] text-[#c7511f]">
-                Activity & Audit Trail
+                Audit Trail
               </p>
 
               <h2 className="mt-2 text-xl font-extrabold text-[#162033]">
-                Who did what
+                {es ? "Cambios en el registro" : "Software record changes"}
               </h2>
 
               <p className="mt-2 text-sm text-slate-500">
-                Administrative changes
-                are retained even when an
-                inbound is later cancelled
-                or removed from normal
-                views.
+                {es
+                  ? "Este historial administrativo se conserva por separado de la evidencia del trabajo físico."
+                  : "This administrative history is retained separately from evidence of physical work."}
               </p>
 
               <div className="mt-6 space-y-3">
                 {auditEvents.length ===
                 0 ? (
                   <p className="rounded-xl bg-slate-50 p-5 text-sm text-slate-500">
-                    No audit activity yet.
+                    {es ? "Aún no hay actividad administrativa." : "No audit activity yet."}
                   </p>
                 ) : (
                   auditEvents.map(
@@ -587,12 +771,10 @@ async function InboundDetailContent({
                       const actor =
                         event.actor_user_id ===
                         String(userId)
-                          ? email
+                          ? teamMap.get(String(userId)) ?? email
                           : event.actor_user_id
-                            ? `Team member · ${event.actor_user_id.slice(
-                                0,
-                                8,
-                              )}`
+                            ? teamMap.get(event.actor_user_id) ??
+                              (es ? "Miembro del equipo" : "Team member")
                             : "FulfillOS";
 
                       return (
@@ -619,13 +801,13 @@ async function InboundDetailContent({
                               {new Date(
                                 event.happened_at,
                               ).toLocaleString(
-                                "en-US",
+                                es ? "es-AR" : "en-US",
                               )}
                             </p>
 
                             {event.reason && (
                               <p className="mt-2 text-sm text-slate-600">
-                                Reason:{" "}
+                                {es ? "Motivo:" : "Reason:"}{" "}
                                 {
                                   event.reason
                                 }
@@ -666,10 +848,12 @@ async function InboundDetailContent({
                     available.
                   </p>
 
-                  <div className="mt-5 rounded-xl bg-amber-100 px-5 py-3 text-center font-bold text-amber-800">
-                    Receive units — next
-                    step
-                  </div>
+                  <Link
+                    href={`/floor/receive/${shipment.id}`}
+                    className="mt-5 inline-flex min-h-12 w-full items-center justify-center rounded-xl bg-[#f59e0b] px-5 py-3 text-center font-bold text-[#162033] transition hover:bg-[#fbbf24]"
+                  >
+                    {es ? "Recibir unidades en Modo Piso" : "Receive units in Floor Mode"}
+                  </Link>
                 </>
               ) : (
                 <>
@@ -768,10 +952,13 @@ async function InboundDetailContent({
                 <Protection
                   title="Proof of Work"
                   value={
-                    totals.received >
-                    0
-                      ? "Evidence available"
-                      : "Starts when receiving begins"
+                    proofEvents.length > 0
+                      ? es
+                        ? `${proofEvents.length} evento${proofEvents.length === 1 ? "" : "s"} verificable${proofEvents.length === 1 ? "" : "s"}`
+                        : `${proofEvents.length} verifiable event${proofEvents.length === 1 ? "" : "s"}`
+                      : es
+                        ? "Comienza al recibir"
+                        : "Starts when receiving begins"
                   }
                 />
 
@@ -911,6 +1098,21 @@ function formatAction(
   };
 
   return labels[action] ?? action;
+}
+
+function asRecord(value: unknown): Record<string, unknown> {
+  return value && typeof value === "object" && !Array.isArray(value)
+    ? (value as Record<string, unknown>)
+    : {};
+}
+
+function asText(value: unknown) {
+  return typeof value === "string" && value.trim() ? value.trim() : null;
+}
+
+function asNumber(value: unknown) {
+  const number = typeof value === "number" ? value : Number(value);
+  return Number.isFinite(number) ? number : 0;
 }
 
 function Loading() {
