@@ -3,6 +3,7 @@ import { Suspense } from "react";
 import { redirect } from "next/navigation";
 
 import { ModuleShell } from "@/components/module-shell";
+import { getLocale } from "@/lib/locale";
 import { createClient } from "@/lib/supabase/server";
 
 type InboundPageProps = {
@@ -59,6 +60,8 @@ async function InboundContent({
 
   const supabase =
     await createClient();
+  const locale = await getLocale();
+  const es = locale === "es";
 
   const {
     data: authData,
@@ -489,7 +492,7 @@ async function InboundContent({
                         )}
                       </div>
 
-                      <div className="grid grid-cols-3 gap-4 lg:min-w-[390px]">
+                      <div className="grid grid-cols-2 gap-3 sm:grid-cols-4 lg:min-w-[500px]">
                         <Metric
                           label="SKUs"
                           value={String(
@@ -509,6 +512,20 @@ async function InboundContent({
                           value={String(
                             summary.received,
                           )}
+                        />
+
+                        <Metric
+                          label={
+                            es
+                              ? "Dañadas"
+                              : "Damaged"
+                          }
+                          value={String(
+                            summary.damaged,
+                          )}
+                          alert={
+                            summary.damaged > 0
+                          }
                         />
                       </div>
                     </div>
@@ -577,17 +594,37 @@ function StatusBadge({
 function Metric({
   label,
   value,
+  alert = false,
 }: {
   label: string;
   value: string;
+  alert?: boolean;
 }) {
   return (
-    <div className="rounded-xl bg-slate-50 p-3 text-center">
-      <p className="text-xs font-bold uppercase text-slate-400">
+    <div
+      className={`rounded-xl border p-3 text-center ${
+        alert
+          ? "border-red-200 bg-red-50"
+          : "border-transparent bg-slate-50"
+      }`}
+    >
+      <p
+        className={`text-xs font-bold uppercase ${
+          alert
+            ? "text-red-600"
+            : "text-slate-400"
+        }`}
+      >
         {label}
       </p>
 
-      <p className="mt-1 text-xl font-extrabold text-[#162033]">
+      <p
+        className={`mt-1 text-xl font-extrabold ${
+          alert
+            ? "text-red-700"
+            : "text-[#162033]"
+        }`}
+      >
         {value}
       </p>
     </div>
