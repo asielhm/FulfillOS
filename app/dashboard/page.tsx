@@ -212,9 +212,10 @@ async function DashboardContent() {
           <div className="flex items-center gap-3 sm:gap-4">
             <Link
               href="/floor"
-              className="hidden min-h-10 items-center rounded-xl border border-white/20 px-3 text-xs font-bold transition hover:bg-white/10 sm:inline-flex"
+              className="inline-flex min-h-10 items-center rounded-xl border border-white/20 px-3 text-xs font-bold transition hover:bg-white/10"
             >
-              {locale === "es" ? "Modo piso" : "Floor Mode"}
+              <span className="sm:hidden">{locale === "es" ? "Piso" : "Floor"}</span>
+              <span className="hidden sm:inline">{locale === "es" ? "Modo piso" : "Floor Mode"}</span>
             </Link>
             <div className="hidden text-right md:block">
               <p className="max-w-60 truncate text-sm font-semibold">

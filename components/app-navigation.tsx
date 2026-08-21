@@ -16,6 +16,7 @@ function createManagerSections(locale: Locale): NavigationSection[] {
     label: messages.operations,
     items: [
       { label: messages.overview, icon: "⌂", href: "/dashboard" },
+      { label: messages.floorMode, icon: "▣", href: "/floor" },
       { label: messages.controlTower, icon: "!", href: "/control-tower" },
       { label: messages.revenueProtection, icon: "$", href: "/revenue-protection" },
       { label: messages.inbound, icon: "↓", href: "/inbound" },

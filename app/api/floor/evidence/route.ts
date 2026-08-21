@@ -1,6 +1,7 @@
 import { randomUUID } from "node:crypto";
 import { NextResponse } from "next/server";
 
+import { isUnsafeCrossSiteMutation } from "@/lib/security";
 import { createClient } from "@/lib/supabase/server";
 
 export const runtime = "nodejs";
@@ -33,6 +34,10 @@ async function hasValidImageSignature(file: File) {
 }
 
 export async function POST(request: Request) {
+  if (isUnsafeCrossSiteMutation(request)) {
+    return NextResponse.json({ error: "Cross-site evidence requests are not allowed." }, { status: 403 });
+  }
+
   const supabase = await createClient();
   const { data: authData, error: authError } = await supabase.auth.getClaims();
   const userId = authData?.claims?.sub;
@@ -146,6 +151,11 @@ export async function POST(request: Request) {
     .single();
 
   if (evidenceError) {
+    console.error("Evidence record insert failed", {
+      code: evidenceError.code,
+      message: evidenceError.message,
+      operationalEventId: event.id,
+    });
     await supabase.storage.from("proof-of-work").remove([storagePath]);
     return NextResponse.json(
       {

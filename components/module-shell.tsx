@@ -24,8 +24,9 @@ export async function ModuleShell({ children, organizationName, email, role }: M
           </Link>
           <div className="flex min-w-0 items-center gap-3">
             {["owner", "admin", "manager"].includes(role) && (
-              <Link href="/floor" className="hidden min-h-10 items-center rounded-xl border border-white/20 px-3 text-xs font-bold text-white transition hover:bg-white/10 sm:inline-flex">
-                {locale === "es" ? "Modo piso" : "Floor Mode"}
+              <Link href="/floor" className="inline-flex min-h-10 items-center rounded-xl border border-white/20 px-3 text-xs font-bold text-white transition hover:bg-white/10">
+                <span className="sm:hidden">{locale === "es" ? "Piso" : "Floor"}</span>
+                <span className="hidden sm:inline">{locale === "es" ? "Modo piso" : "Floor Mode"}</span>
               </Link>
             )}
             <LanguageSwitcher locale={locale} inverse />

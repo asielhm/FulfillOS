@@ -37,10 +37,11 @@ export function FloorShell({
             {canManage && (
               <Link
                 href="/dashboard"
-                className="hidden min-h-11 items-center gap-2 rounded-xl border border-white/20 px-3 text-xs font-bold transition hover:bg-white/10 sm:inline-flex"
+                className="inline-flex min-h-11 items-center gap-2 rounded-xl border border-white/20 px-3 text-xs font-bold transition hover:bg-white/10"
               >
                 <LayoutDashboard className="h-4 w-4" />
-                {es ? "Modo manager" : "Manager Mode"}
+                <span className="hidden sm:inline">{es ? "Modo manager" : "Manager Mode"}</span>
+                <span className="sm:hidden">Manager</span>
               </Link>
             )}
             <LanguageSwitcher locale={locale} inverse />
