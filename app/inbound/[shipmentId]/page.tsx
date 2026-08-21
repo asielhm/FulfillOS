@@ -6,6 +6,7 @@ import {
 } from "next/navigation";
 
 import { ModuleShell } from "@/components/module-shell";
+import { InboundLifecycleActions } from "@/components/inbound-lifecycle-actions";
 import {
   ProofOfWorkTimeline,
   type ProofEventView,
@@ -118,6 +119,9 @@ async function InboundDetailContent({
         arrived_at,
         receiving_started_at,
         completed_at,
+        cancelled_at,
+        cancelled_by,
+        cancel_reason,
         notes,
         created_at
       `,
@@ -568,6 +572,18 @@ async function InboundDetailContent({
   const availableLocations =
     locationsResult.data?.length ??
     0;
+  const canManage = [
+    "owner",
+    "admin",
+    "manager",
+  ].includes(membership.role);
+  const canMarkArrived = [
+    "owner",
+    "admin",
+    "manager",
+    "operator",
+    "employee",
+  ].includes(membership.role);
 
   return (
     <ModuleShell
@@ -828,13 +844,47 @@ async function InboundDetailContent({
           </div>
 
           <div className="space-y-6">
+            <InboundLifecycleActions
+              shipmentId={shipment.id}
+              status={shipment.status}
+              expectedAt={shipment.expected_at}
+              receivedUnits={totals.received}
+              canManage={canManage}
+              canMarkArrived={canMarkArrived}
+              locale={locale}
+            />
+
             <section className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
               <p className="text-sm font-bold uppercase tracking-[0.16em] text-[#c7511f]">
                 Receiving
               </p>
 
-              {availableLocations >
-              0 ? (
+              {shipment.status ===
+              "cancelled" ? (
+                <>
+                  <h2 className="mt-2 text-xl font-extrabold text-[#162033]">
+                    {es ? "Inbound cancelado" : "Inbound cancelled"}
+                  </h2>
+                  <p className="mt-3 text-sm leading-6 text-slate-600">
+                    {es
+                      ? "La recepción está bloqueada. El motivo y el historial se conservan para auditoría."
+                      : "Receiving is blocked. The reason and history remain available for audit."}
+                  </p>
+                </>
+              ) : shipment.status ===
+                "completed" ? (
+                <>
+                  <h2 className="mt-2 text-xl font-extrabold text-[#162033]">
+                    {es ? "Recepción completada" : "Receiving completed"}
+                  </h2>
+                  <p className="mt-3 text-sm leading-6 text-slate-600">
+                    {es
+                      ? "El inventario y su Proof of Work ya quedaron registrados."
+                      : "Inventory and its Proof of Work have been recorded."}
+                  </p>
+                </>
+              ) : availableLocations >
+                0 ? (
                 <>
                   <h2 className="mt-2 text-xl font-extrabold text-[#162033]">
                     Ready to receive
@@ -932,6 +982,31 @@ async function InboundDetailContent({
                       : "Not specified"
                   }
                 />
+
+                {shipment.arrived_at && (
+                  <Info
+                    label={es ? "Llegó" : "Arrived"}
+                    value={new Date(shipment.arrived_at).toLocaleString(
+                      es ? "es-AR" : "en-US",
+                    )}
+                  />
+                )}
+
+                {shipment.cancelled_at && (
+                  <Info
+                    label={es ? "Cancelado" : "Cancelled"}
+                    value={new Date(shipment.cancelled_at).toLocaleString(
+                      es ? "es-AR" : "en-US",
+                    )}
+                  />
+                )}
+
+                {shipment.cancel_reason && (
+                  <Info
+                    label={es ? "Motivo de cancelación" : "Cancellation reason"}
+                    value={shipment.cancel_reason}
+                  />
+                )}
               </dl>
 
               {shipment.notes && (

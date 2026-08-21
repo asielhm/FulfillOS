@@ -133,7 +133,7 @@ export default async function ControlTowerPage({ searchParams }: PageProps) {
   const [shipmentsResult, customersResult, warehousesResult, casesResult, billableResult, proofResult] = await Promise.all([
     supabase
       .from("inbound_shipments")
-      .select("id, customer_id, warehouse_id, inbound_number, status, expected_at, created_at, completed_at")
+      .select("id, customer_id, warehouse_id, inbound_number, status, expected_at, arrived_at, receiving_started_at, created_at, completed_at")
       .eq("organization_id", organization.id)
       .is("deleted_at", null)
       .order("created_at", { ascending: false })
@@ -436,7 +436,7 @@ function Quantity({ label, value }: { label: string; value: number }) {
 }
 
 function buildExceptions(
-  shipments: Array<{ id: string; customer_id: string; warehouse_id: string; inbound_number: string; status: string; expected_at: string | null; created_at: string; completed_at: string | null }>,
+  shipments: Array<{ id: string; customer_id: string; warehouse_id: string; inbound_number: string; status: string; expected_at: string | null; arrived_at: string | null; receiving_started_at: string | null; created_at: string; completed_at: string | null }>,
   totals: Map<string, { expected: number; received: number; damaged: number }>,
   customers: Map<string, string>,
   warehouses: Map<string, string>,
@@ -497,7 +497,12 @@ function buildExceptions(
     }
 
     if (["expected", "arrived", "receiving"].includes(shipment.status)) {
-      const reference = shipment.expected_at ?? shipment.created_at;
+      const reference =
+        shipment.status === "receiving"
+          ? shipment.receiving_started_at ?? shipment.arrived_at ?? shipment.expected_at ?? shipment.created_at
+          : shipment.status === "arrived"
+            ? shipment.arrived_at ?? shipment.expected_at ?? shipment.created_at
+            : shipment.expected_at ?? shipment.created_at;
       const daysOpen = Math.floor((now - new Date(reference).getTime()) / 86_400_000);
       if (daysOpen >= 3) {
         exceptions.push({
@@ -508,7 +513,18 @@ function buildExceptions(
           affectedUnits: Math.max(total.expected - total.received, 0),
           summary: locale === "es" ? `${daysOpen} días sin completar` : `${daysOpen} days without completion`,
           explanation: locale === "es" ? `El inbound permanece en estado ${shipment.status} y superó el umbral operativo de 3 días.` : `The inbound remains ${shipment.status} and has exceeded the 3-day operating threshold.`,
-          recommendation: locale === "es" ? "Abre la recepción, confirma su estado físico y define el próximo responsable." : "Open the inbound, confirm its physical status and identify the next responsible owner.",
+          recommendation:
+            shipment.status === "expected"
+              ? locale === "es"
+                ? "Abre el inbound: márcalo como llegado, reprograma la fecha o cancélalo con un motivo."
+                : "Open the inbound: mark it as arrived, reschedule it, or cancel it with a reason."
+              : shipment.status === "arrived"
+                ? locale === "es"
+                  ? "Inicia la recepción o asigna al próximo responsable."
+                  : "Start receiving or assign the next responsible owner."
+                : locale === "es"
+                  ? "Continúa la recepción y documenta cualquier bloqueo antes de completarla."
+                  : "Continue receiving and document any blocker before completion.",
         });
       }
     }
