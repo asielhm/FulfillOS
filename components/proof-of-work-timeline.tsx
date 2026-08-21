@@ -2,6 +2,7 @@ import Image from "next/image";
 import { Camera, CheckCircle2, MapPin, PackageCheck, ShieldCheck, UserRound } from "lucide-react";
 import type { ReactNode } from "react";
 
+import { ProofPhotoUploader } from "@/components/proof-photo-uploader";
 import type { Locale } from "@/lib/i18n";
 
 export type ProofEvidenceView = {
@@ -31,17 +32,19 @@ export type ProofEventView = {
 export function ProofOfWorkTimeline({
   locale,
   events,
+  canAttachPhoto = false,
 }: {
   locale: Locale;
   events: ProofEventView[];
+  canAttachPhoto?: boolean;
 }) {
   const es = locale === "es";
   const photoCount = events.reduce(
-    (total, event) => total + event.evidence.filter((item) => item.photoUrl).length,
+    (total, event) => total + event.evidence.filter((item) => item.type === "photo").length,
     0,
   );
   const damagedWithoutPhoto = events.filter(
-    (event) => event.damagedQuantity > 0 && !event.evidence.some((item) => item.photoUrl),
+    (event) => event.damagedQuantity > 0 && !event.evidence.some((item) => item.type === "photo"),
   ).length;
 
   return (
@@ -93,6 +96,7 @@ export function ProofOfWorkTimeline({
             const photos = event.evidence.filter(
               (item): item is ProofEvidenceView & { photoUrl: string } => Boolean(item.photoUrl),
             );
+            const hasPhotoEvidence = event.evidence.some((item) => item.type === "photo");
             const systemEvidence = event.evidence.filter((item) => !item.photoUrl && item.text);
 
             return (
@@ -174,12 +178,23 @@ export function ProofOfWorkTimeline({
                         </a>
                       ))}
                     </div>
-                  ) : event.damagedQuantity > 0 ? (
-                    <p className="mt-3 rounded-xl border border-red-200 bg-red-50 p-3 text-sm font-semibold text-red-800">
+                  ) : hasPhotoEvidence ? (
+                    <p className="mt-3 rounded-xl border border-amber-200 bg-amber-50 p-3 text-sm font-semibold text-amber-900">
                       {es
-                        ? "Falta una foto de soporte para esta recepción con daño."
-                        : "A supporting photo is missing for this damaged receipt."}
+                        ? "La foto está vinculada, pero la vista previa no está disponible temporalmente."
+                        : "The photo is linked, but its preview is temporarily unavailable."}
                     </p>
+                  ) : event.damagedQuantity > 0 ? (
+                    <div className="mt-3">
+                      <p className="rounded-xl border border-red-200 bg-red-50 p-3 text-sm font-semibold text-red-800">
+                        {es
+                          ? "Falta una foto de soporte para esta recepción con daño."
+                          : "A supporting photo is missing for this damaged receipt."}
+                      </p>
+                      {canAttachPhoto ? (
+                        <ProofPhotoUploader operationalEventId={event.id} locale={locale} />
+                      ) : null}
+                    </div>
                   ) : null}
 
                   {systemEvidence.length > 0 ? (

@@ -718,7 +718,11 @@ async function InboundDetailContent({
               </div>
             </section>
 
-            <ProofOfWorkTimeline locale={locale} events={proofEvents} />
+            <ProofOfWorkTimeline
+              locale={locale}
+              events={proofEvents}
+              canAttachPhoto={["owner", "admin", "manager", "operator"].includes(membership.role)}
+            />
 
             <section className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
               <p className="text-sm font-bold uppercase tracking-[0.16em] text-[#c7511f]">
