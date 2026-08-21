@@ -36,6 +36,18 @@ export default async function FloorMovePage({ searchParams }: PageProps) {
     warehouseList[0] ??
     null;
 
+  const locationsResult = selectedWarehouse
+    ? await supabase
+        .from("warehouse_locations")
+        .select("id, name, code, barcode, purpose")
+        .eq("organization_id", organization.id)
+        .eq("warehouse_id", selectedWarehouse.id)
+        .eq("is_active", true)
+        .order("sort_order")
+        .order("name")
+    : { data: [], error: null };
+  if (locationsResult.error) throw new Error(locationsResult.error.message);
+
   return (
     <FloorShell
       organizationName={organization.name}
@@ -54,8 +66,8 @@ export default async function FloorMovePage({ searchParams }: PageProps) {
         </h1>
         <p className="mt-2 max-w-2xl text-sm leading-6 text-slate-600">
           {es
-            ? "Escaneá origen, producto y destino. FulfillOS conserva esos escaneos como Proof of Work."
-            : "Scan source, product, and destination. FulfillOS keeps those scans as Proof of Work."}
+            ? "Escaneá o elegí las ubicaciones y escaneá el producto. FulfillOS conserva cada confirmación como Proof of Work."
+            : "Scan or choose locations and scan the product. FulfillOS keeps every confirmation as Proof of Work."}
         </p>
       </div>
 
@@ -84,7 +96,7 @@ export default async function FloorMovePage({ searchParams }: PageProps) {
         </section>
       ) : null}
 
-      {selectedWarehouse ? (
+      {selectedWarehouse && (locationsResult.data?.length ?? 0) >= 2 ? (
         <InventoryMoveWorkflow
           key={selectedWarehouse.id}
           locale={locale}
@@ -93,17 +105,28 @@ export default async function FloorMovePage({ searchParams }: PageProps) {
             name: selectedWarehouse.name,
             code: selectedWarehouse.code,
           }}
+          locations={locationsResult.data ?? []}
         />
       ) : (
         <section className="mt-8 rounded-3xl border border-dashed border-slate-300 bg-white px-6 py-14 text-center">
           <Warehouse className="mx-auto h-12 w-12 text-slate-400" />
           <h2 className="mt-4 text-xl font-black text-[#162033]">
-            {es ? "Primero configurá un almacén" : "Set up a warehouse first"}
+            {selectedWarehouse
+              ? es
+                ? "Configurá dos ubicaciones"
+                : "Set up two locations"
+              : es
+                ? "Primero configurá un almacén"
+                : "Set up a warehouse first"}
           </h2>
           <p className="mt-2 text-sm text-slate-500">
-            {es
-              ? "Necesitás un almacén activo y al menos dos ubicaciones para mover inventario."
-              : "You need an active warehouse and at least two locations to move inventory."}
+            {selectedWarehouse
+              ? es
+                ? "Mover inventario requiere al menos una ubicación de origen y otra de destino."
+                : "Moving inventory requires at least one source and one destination location."
+              : es
+                ? "Necesitás un almacén activo y al menos dos ubicaciones para mover inventario."
+                : "You need an active warehouse and at least two locations to move inventory."}
           </p>
           <Link
             href="/warehouses"

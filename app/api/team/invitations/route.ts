@@ -18,9 +18,19 @@ export async function POST(request: NextRequest) {
   const displayName = String(form.get("displayName") ?? "").trim();
   const jobTitle = String(form.get("jobTitle") ?? "").trim();
   const role = String(form.get("role") ?? "operator");
-  if (!/^\S+@\S+\.\S+$/.test(email) || displayName.length < 2 || !["admin", "manager", "operator", "viewer"].includes(role)) return redirect("/team?error=Check%20the%20name,%20email%20and%20role.");
+  if (
+    !/^\S+@\S+\.\S+$/.test(email)
+    || email.length > 254
+    || displayName.length < 2
+    || displayName.length > 120
+    || jobTitle.length > 120
+    || !["admin", "manager", "operator", "viewer"].includes(role)
+  ) return redirect("/team?error=Check%20the%20name,%20email%20and%20role.");
   const token = randomBytes(32).toString("hex");
   const { error } = await supabase.from("organization_invitations").insert({ organization_id: membership.organization_id, email, display_name: displayName, job_title: jobTitle || null, role, token, invited_by: userId });
-  if (error) return redirect(`/team?error=${encodeURIComponent(error.message)}`);
+  if (error) {
+    console.error("Team invitation creation failed", error);
+    return redirect("/team?error=The%20invitation%20could%20not%20be%20created.");
+  }
   return redirect("/team?saved=1");
 }

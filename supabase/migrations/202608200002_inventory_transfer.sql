@@ -27,6 +27,10 @@ declare
   v_event_id uuid;
   v_existing_event_id uuid;
   v_existing_metadata jsonb;
+  v_source_input text;
+  v_destination_input text;
+  v_source_method text := 'scan';
+  v_destination_method text := 'scan';
 begin
   if v_user_id is null then
     raise exception 'Authentication required';
@@ -58,6 +62,20 @@ begin
   end if;
   if p_note is not null and char_length(p_note) > 500 then
     raise exception 'Note must be 500 characters or fewer';
+  end if;
+
+  v_source_input := trim(p_source_scan);
+  v_destination_input := trim(p_destination_scan);
+  if left(v_source_input, 5) = 'menu:' then
+    v_source_method := 'selection';
+    v_source_input := trim(substring(v_source_input from 6));
+  end if;
+  if left(v_destination_input, 5) = 'menu:' then
+    v_destination_method := 'selection';
+    v_destination_input := trim(substring(v_destination_input from 6));
+  end if;
+  if v_source_input = '' or v_destination_input = '' then
+    raise exception 'Source and destination locations are required';
   end if;
 
   select event.id, event.metadata
@@ -94,8 +112,8 @@ begin
     and location.warehouse_id = p_warehouse_id
     and location.is_active = true
     and (
-      lower(location.code) = lower(trim(p_source_scan))
-      or location.barcode = trim(p_source_scan)
+      lower(location.code) = lower(v_source_input)
+      or location.barcode = v_source_input
     )
   limit 1;
 
@@ -158,8 +176,8 @@ begin
     and location.warehouse_id = p_warehouse_id
     and location.is_active = true
     and (
-      lower(location.code) = lower(trim(p_destination_scan))
-      or location.barcode = trim(p_destination_scan)
+      lower(location.code) = lower(v_destination_input)
+      or location.barcode = v_destination_input
     )
   limit 1;
 
@@ -277,8 +295,10 @@ begin
     captured_by
   ) values
     (
-      v_organization_id, v_event_id, 'barcode_scan', trim(p_source_scan),
-      jsonb_build_object('step', 'source_location', 'location_id', v_source.id, 'location_code', v_source.code),
+      v_organization_id, v_event_id,
+      case when v_source_method = 'scan' then 'barcode_scan' else 'system' end,
+      v_source_input,
+      jsonb_build_object('step', 'source_location', 'input_method', v_source_method, 'location_id', v_source.id, 'location_code', v_source.code),
       v_user_id
     ),
     (
@@ -287,8 +307,10 @@ begin
       v_user_id
     ),
     (
-      v_organization_id, v_event_id, 'barcode_scan', trim(p_destination_scan),
-      jsonb_build_object('step', 'destination_location', 'location_id', v_destination.id, 'location_code', v_destination.code),
+      v_organization_id, v_event_id,
+      case when v_destination_method = 'scan' then 'barcode_scan' else 'system' end,
+      v_destination_input,
+      jsonb_build_object('step', 'destination_location', 'input_method', v_destination_method, 'location_id', v_destination.id, 'location_code', v_destination.code),
       v_user_id
     );
 

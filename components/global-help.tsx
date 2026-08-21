@@ -6,6 +6,7 @@ import { usePathname } from "next/navigation";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { LifeBuoy, MessageCircle, Send, Sparkles, X } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
+import { hasEnvVars } from "@/lib/utils";
 
 type Locale = "en" | "es";
 type HelpTopic = {
@@ -227,6 +228,8 @@ export function GlobalHelp() {
 
   useEffect(() => {
     setLocale(localeFromCookie());
+    if (!hasEnvVars) return;
+
     const supabase = createClient();
     void supabase.auth.getSession().then(({ data }) => {
       const id = data.session?.user.id ?? null;

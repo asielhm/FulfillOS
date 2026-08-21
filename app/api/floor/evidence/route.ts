@@ -14,6 +14,24 @@ const allowedTypes = new Map([
 const maximumBytes = 10 * 1024 * 1024;
 const allowedContexts = new Set(["damaged_inbound"]);
 
+async function hasValidImageSignature(file: File) {
+  const bytes = new Uint8Array(await file.slice(0, 12).arrayBuffer());
+
+  if (file.type === "image/jpeg") {
+    return bytes[0] === 0xff && bytes[1] === 0xd8 && bytes[2] === 0xff;
+  }
+  if (file.type === "image/png") {
+    return [0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]
+      .every((byte, index) => bytes[index] === byte);
+  }
+  if (file.type === "image/webp") {
+    return String.fromCharCode(...bytes.slice(0, 4)) === "RIFF"
+      && String.fromCharCode(...bytes.slice(8, 12)) === "WEBP";
+  }
+
+  return false;
+}
+
 export async function POST(request: Request) {
   const supabase = await createClient();
   const { data: authData, error: authError } = await supabase.auth.getClaims();
@@ -32,7 +50,8 @@ export async function POST(request: Request) {
     .maybeSingle();
 
   if (membershipError) {
-    return NextResponse.json({ error: membershipError.message }, { status: 500 });
+    console.error("Evidence membership lookup failed", membershipError);
+    return NextResponse.json({ error: "Evidence access could not be verified." }, { status: 500 });
   }
   if (
     !membership ||
@@ -74,6 +93,12 @@ export async function POST(request: Request) {
       { status: 413 },
     );
   }
+  if (!(await hasValidImageSignature(file))) {
+    return NextResponse.json(
+      { error: "The file contents do not match a supported image format." },
+      { status: 415 },
+    );
+  }
 
   const { data: event, error: eventError } = await supabase
     .from("operational_events")
@@ -82,7 +107,8 @@ export async function POST(request: Request) {
     .eq("organization_id", membership.organization_id)
     .maybeSingle();
   if (eventError) {
-    return NextResponse.json({ error: eventError.message }, { status: 500 });
+    console.error("Evidence event lookup failed", eventError);
+    return NextResponse.json({ error: "The Proof of Work event could not be verified." }, { status: 500 });
   }
   if (!event) {
     return NextResponse.json({ error: "Operational event was not found." }, { status: 404 });
@@ -97,7 +123,8 @@ export async function POST(request: Request) {
       upsert: false,
     });
   if (uploadError) {
-    return NextResponse.json({ error: uploadError.message }, { status: 409 });
+    console.error("Evidence storage upload failed", uploadError);
+    return NextResponse.json({ error: "The photo could not be uploaded. Try again." }, { status: 409 });
   }
 
   const { data: evidence, error: evidenceError } = await supabase

@@ -1,7 +1,18 @@
 import { updateSession } from "@/lib/supabase/proxy";
-import { type NextRequest } from "next/server";
+import { isUnsafeCrossSiteMutation } from "@/lib/security";
+import { NextResponse, type NextRequest } from "next/server";
 
 export async function proxy(request: NextRequest) {
+  if (isUnsafeCrossSiteMutation(request)) {
+    return NextResponse.json(
+      { error: "Cross-site request blocked." },
+      {
+        status: 403,
+        headers: { "Cache-Control": "no-store" },
+      },
+    );
+  }
+
   return await updateSession(request);
 }
 

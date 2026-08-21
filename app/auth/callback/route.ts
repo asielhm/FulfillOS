@@ -1,6 +1,7 @@
 import { createClient } from "@/lib/supabase/server";
 import { type NextRequest, NextResponse } from "next/server";
 import { isPlanId } from "@/lib/plans";
+import { safeInternalPath } from "@/lib/security";
 
 export async function GET(request: NextRequest) {
   const code = request.nextUrl.searchParams.get("code");
@@ -8,9 +9,7 @@ export async function GET(request: NextRequest) {
   const mode = request.nextUrl.searchParams.get("mode");
   const requestedPlan = request.nextUrl.searchParams.get("plan");
   const inviteToken = request.nextUrl.searchParams.get("invite");
-  const nextPath = requestedPath.startsWith("/") && !requestedPath.startsWith("//")
-    ? requestedPath
-    : "/dashboard";
+  const nextPath = safeInternalPath(requestedPath);
 
   if (!code) {
     return NextResponse.redirect(
@@ -22,8 +21,9 @@ export async function GET(request: NextRequest) {
   const { error } = await supabase.auth.exchangeCodeForSession(code);
 
   if (error) {
+    console.error("OAuth code exchange failed", error);
     return NextResponse.redirect(
-      new URL(`/auth/login?error=${encodeURIComponent(error.message)}`, request.url),
+      new URL("/auth/login?error=Google%20sign-in%20could%20not%20be%20completed.", request.url),
     );
   }
 
@@ -42,7 +42,8 @@ export async function GET(request: NextRequest) {
       },
     });
     if (metadataError) {
-      return NextResponse.redirect(new URL(`/auth/login?error=${encodeURIComponent(metadataError.message)}`, request.url));
+      console.error("OAuth signup metadata update failed", metadataError);
+      return NextResponse.redirect(new URL("/auth/login?error=Your%20account%20could%20not%20be%20prepared.", request.url));
     }
   }
 

@@ -6,7 +6,6 @@ import { useRouter } from "next/navigation";
 import {
   ArrowLeft,
   CheckCircle2,
-  MapPin,
   PackageCheck,
   RotateCcw,
   ShieldCheck,
@@ -14,6 +13,7 @@ import {
 } from "lucide-react";
 
 import { PhotoEvidenceCapture } from "@/components/floor/photo-evidence-capture";
+import { LocationSelect } from "@/components/floor/location-select";
 import { QuantityInput } from "@/components/floor/quantity-input";
 import { ScanInput } from "@/components/floor/scan-input";
 import type { Locale } from "@/lib/i18n";
@@ -147,6 +147,15 @@ export function ReceivingWorkflow({
       );
       return;
     }
+    setLocation(match);
+    setLocationError(false);
+    setLocationMessage(`${match.code} · ${match.name}`);
+    setSubmitError(null);
+  }
+
+  function selectLocation(locationId: string) {
+    const match = locations.find((entry) => entry.id === locationId);
+    if (!match) return;
     setLocation(match);
     setLocationError(false);
     setLocationMessage(`${match.code} · ${match.name}`);
@@ -498,18 +507,21 @@ export function ReceivingWorkflow({
               onScan={scanLocation}
             />
           </div>
-          <div className="mt-4 flex flex-wrap gap-2">
-            {locations.slice(0, 4).map((entry) => (
-              <button
-                key={entry.id}
-                type="button"
-                onClick={() => scanLocation(entry.barcode ?? entry.code)}
-                className="min-h-11 rounded-xl border border-slate-200 bg-slate-50 px-3 text-xs font-bold text-slate-700"
-              >
-                <MapPin className="mr-1 inline h-4 w-4" /> {entry.code}
-              </button>
-            ))}
+          <div className="my-4 flex items-center gap-3" aria-hidden="true">
+            <span className="h-px flex-1 bg-slate-200" />
+            <span className="text-xs font-black uppercase tracking-[0.12em] text-slate-400">
+              {es ? "o elegí" : "or choose"}
+            </span>
+            <span className="h-px flex-1 bg-slate-200" />
           </div>
+          <LocationSelect
+            id="receiving-location"
+            label={es ? "Ubicación del menú" : "Location menu"}
+            placeholder={es ? "Elegir una ubicación" : "Choose a location"}
+            locations={locations}
+            selectedId={location?.id}
+            onSelect={(entry) => selectLocation(entry.id)}
+          />
         </section>
 
         <section className={location ? "rounded-3xl border border-slate-200 bg-white p-5 shadow-sm sm:p-6" : "rounded-3xl border border-slate-200 bg-slate-100 p-5 opacity-60 sm:p-6"}>

@@ -12,6 +12,7 @@ import {
 } from "lucide-react";
 
 import { QuantityInput } from "@/components/floor/quantity-input";
+import { LocationSelect } from "@/components/floor/location-select";
 import { ScanInput } from "@/components/floor/scan-input";
 import type { Locale } from "@/lib/i18n";
 
@@ -44,7 +45,7 @@ function newIdempotencyKey() {
   return globalThis.crypto?.randomUUID?.() ?? `move-${Date.now()}-${Math.random()}`;
 }
 
-export function InventoryMoveWorkflow({ locale, warehouse }: { locale: Locale; warehouse: Warehouse }) {
+export function InventoryMoveWorkflow({ locale, warehouse, locations }: { locale: Locale; warehouse: Warehouse; locations: Location[] }) {
   const es = locale === "es";
   const [source, setSource] = useState<Location | null>(null);
   const [sourceScan, setSourceScan] = useState("");
@@ -108,6 +109,21 @@ export function InventoryMoveWorkflow({ locale, warehouse }: { locale: Locale; w
     }
   }
 
+  function selectSource(locationId: string) {
+    const location = locations.find((entry) => entry.id === locationId);
+    if (!location) return;
+    setSource(location);
+    setSourceScan(`menu:${location.code}`);
+    setSourceError(null);
+    setProduct(null);
+    setProductScan("");
+    setAvailable(0);
+    setDestination(null);
+    setDestinationScan("");
+    setSubmitError(null);
+    setSuccess(null);
+  }
+
   async function scanProduct(value: string) {
     if (!source) return;
     setLoadingStep("product");
@@ -158,6 +174,16 @@ export function InventoryMoveWorkflow({ locale, warehouse }: { locale: Locale; w
     } finally {
       setLoadingStep(null);
     }
+  }
+
+  function selectDestination(locationId: string) {
+    const location = locations.find((entry) => entry.id === locationId);
+    if (!location || location.id === source?.id || location.purpose === "quarantine") return;
+    setDestination(location);
+    setDestinationScan(`menu:${location.code}`);
+    setDestinationError(null);
+    setSubmitError(null);
+    setSuccess(null);
   }
 
   async function confirmMove() {
@@ -258,7 +284,7 @@ export function InventoryMoveWorkflow({ locale, warehouse }: { locale: Locale; w
         <div className="mt-4 grid gap-3 sm:grid-cols-2">
           <div className="rounded-2xl bg-emerald-50 p-4 text-sm font-bold text-emerald-900">
             <ShieldCheck className="mb-2 h-5 w-5" />
-            {es ? "Proof of Work: 3 escaneos guardados" : "Proof of Work: 3 scans saved"}
+            {es ? "Proof of Work: origen, producto y destino guardados" : "Proof of Work: source, product, and destination saved"}
           </div>
           <div className="rounded-2xl bg-amber-50 p-4 text-sm font-bold text-amber-900">
             <PackageSearch className="mb-2 h-5 w-5" />
@@ -283,7 +309,7 @@ export function InventoryMoveWorkflow({ locale, warehouse }: { locale: Locale; w
   return (
     <section className="mt-7 space-y-5">
       <div className="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm sm:p-6">
-        <StepLabel number="1" complete={Boolean(source)} label={es ? "Escaneá la ubicación de origen" : "Scan source location"} />
+        <StepLabel number="1" complete={Boolean(source)} label={es ? "Escaneá o elegí el origen" : "Scan or choose the source"} />
         <div className="mt-4">
           <ScanInput
             label={es ? "Origen" : "Source"}
@@ -300,6 +326,16 @@ export function InventoryMoveWorkflow({ locale, warehouse }: { locale: Locale; w
             onScan={scanSource}
           />
         </div>
+        <LocationChoiceDivider es={es} />
+        <LocationSelect
+          id="move-source-location"
+          label={es ? "Ubicación de origen" : "Source location"}
+          placeholder={es ? "Elegir ubicación de origen" : "Choose source location"}
+          locations={locations}
+          selectedId={source?.id}
+          disabled={loadingStep !== null}
+          onSelect={(entry) => selectSource(entry.id)}
+        />
       </div>
 
       <div className={`rounded-3xl border bg-white p-5 shadow-sm sm:p-6 ${source ? "border-slate-200" : "border-slate-200 opacity-60"}`}>
@@ -329,7 +365,7 @@ export function InventoryMoveWorkflow({ locale, warehouse }: { locale: Locale; w
       </div>
 
       <div className={`rounded-3xl border bg-white p-5 shadow-sm sm:p-6 ${product ? "border-slate-200" : "border-slate-200 opacity-60"}`}>
-        <StepLabel number="3" complete={Boolean(destination)} label={es ? "Escaneá la ubicación de destino" : "Scan destination location"} />
+        <StepLabel number="3" complete={Boolean(destination)} label={es ? "Escaneá o elegí el destino" : "Scan or choose the destination"} />
         <div className="mt-4">
           <ScanInput
             label={es ? "Destino" : "Destination"}
@@ -346,6 +382,18 @@ export function InventoryMoveWorkflow({ locale, warehouse }: { locale: Locale; w
             onScan={scanDestination}
           />
         </div>
+        <LocationChoiceDivider es={es} />
+        <LocationSelect
+          id="move-destination-location"
+          label={es ? "Ubicación de destino" : "Destination location"}
+          placeholder={es ? "Elegir ubicación de destino" : "Choose destination location"}
+          locations={locations.filter(
+            (entry) => entry.id !== source?.id && entry.purpose !== "quarantine",
+          )}
+          selectedId={destination?.id}
+          disabled={!product || loadingStep !== null}
+          onSelect={(entry) => selectDestination(entry.id)}
+        />
       </div>
 
       {destination && product ? (
@@ -406,6 +454,18 @@ function StepLabel({ number, complete, label }: { number: string; complete: bool
         {complete ? <CheckCircle2 className="h-5 w-5" /> : number}
       </span>
       <h2 className="text-lg font-black text-[#162033]">{label}</h2>
+    </div>
+  );
+}
+
+function LocationChoiceDivider({ es }: { es: boolean }) {
+  return (
+    <div className="my-4 flex items-center gap-3" aria-hidden="true">
+      <span className="h-px flex-1 bg-slate-200" />
+      <span className="text-xs font-black uppercase tracking-[0.12em] text-slate-400">
+        {es ? "o elegí" : "or choose"}
+      </span>
+      <span className="h-px flex-1 bg-slate-200" />
     </div>
   );
 }
