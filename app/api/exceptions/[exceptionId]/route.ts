@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 
+import { isUnsafeCrossSiteMutation } from "@/lib/security";
 import { createClient } from "@/lib/supabase/server";
 
 export const runtime = "nodejs";
@@ -25,6 +26,10 @@ type ActionBody = {
 };
 
 export async function POST(request: Request, context: RouteContext) {
+  if (isUnsafeCrossSiteMutation(request)) {
+    return NextResponse.json({ error: "Cross-site requests are not allowed." }, { status: 403 });
+  }
+
   const supabase = await createClient();
   const { data: authData, error: authError } = await supabase.auth.getClaims();
 

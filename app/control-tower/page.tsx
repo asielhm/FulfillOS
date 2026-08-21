@@ -6,7 +6,7 @@ import type { Locale } from "@/lib/i18n";
 import { getWorkspaceContext } from "@/lib/workspace";
 
 type Severity = "critical" | "high" | "medium" | "low";
-type ExceptionCategory = "inbound" | "damage" | "stalled";
+type ExceptionCategory = "inbound" | "damage" | "stalled" | "revenue";
 
 type ExceptionItem = {
   id: string;
@@ -62,6 +62,9 @@ const copy = {
     inbound: "Inbound discrepancy",
     damage: "Damage",
     stalled: "Stalled inbound",
+    revenueCategory: "Revenue Protection",
+    revenueAction: "Open Revenue Protection",
+    revenueFound: (count: number) => `${count} captured ${count === 1 ? "service has" : "services have"} no approved rate. Configure pricing to turn real work into invoice-ready revenue.`,
     expected: "Expected",
     received: "Received",
     damaged: "Damaged",
@@ -101,6 +104,9 @@ const copy = {
     inbound: "Discrepancia inbound",
     damage: "Daño",
     stalled: "Recepción demorada",
+    revenueCategory: "Protección de Ingresos",
+    revenueAction: "Abrir Protección de Ingresos",
+    revenueFound: (count: number) => `${count} ${count === 1 ? "servicio capturado no tiene" : "servicios capturados no tienen"} una tarifa aprobada. Configura precios para convertir trabajo real en ingresos listos para facturar.`,
     expected: "Esperado",
     received: "Recibido",
     damaged: "Dañado",
@@ -276,10 +282,16 @@ export default async function ControlTowerPage({ searchParams }: PageProps) {
   ).length;
   const missingProof = persistedExceptions.filter((item) => item.proofCount === 0).length;
   const canManage = ["owner", "admin", "manager"].includes(membership.role);
+  const canReview = ["owner", "admin", "manager", "operator", "employee"].includes(membership.role);
 
   return (
     <ModuleShell organizationName={organization.name} email={email} role={membership.role}>
-      <ModuleHeading eyebrow={messages.eyebrow} title={messages.title} description={messages.description} />
+      <ModuleHeading
+        eyebrow={messages.eyebrow}
+        title={messages.title}
+        description={messages.description}
+        action={<Link href="/revenue-protection" className="inline-flex min-h-12 items-center rounded-xl bg-violet-700 px-5 font-bold text-white transition hover:bg-violet-800">{messages.revenueAction}</Link>}
+      />
 
       <section className="mt-7 grid gap-4 sm:grid-cols-2 xl:grid-cols-5">
         <MetricCard label={messages.open} value={String(exceptions.length)} detail={messages.openDetail} />
@@ -299,6 +311,16 @@ export default async function ControlTowerPage({ searchParams }: PageProps) {
         <p className="mt-3 max-w-4xl text-sm leading-6 text-slate-300">{messages.honest}</p>
       </section>
 
+      {unpricedWork > 0 ? (
+        <section className="mt-6 flex flex-col justify-between gap-5 rounded-3xl border border-violet-200 bg-violet-50 p-6 sm:flex-row sm:items-center">
+          <div>
+            <p className="text-xs font-black uppercase tracking-[0.16em] text-violet-700">Revenue Protection</p>
+            <p className="mt-2 max-w-3xl font-semibold leading-7 text-violet-950">{messages.revenueFound(unpricedWork)}</p>
+          </div>
+          <Link href="/revenue-protection" className="inline-flex min-h-12 shrink-0 items-center justify-center rounded-xl bg-violet-700 px-5 font-black text-white hover:bg-violet-800">{messages.revenueAction} →</Link>
+        </section>
+      ) : null}
+
       <form action="/control-tower" className="mt-6 flex flex-col gap-3 rounded-2xl border border-slate-200 bg-white p-4 sm:flex-row">
         <select name="severity" defaultValue={selectedSeverity} className="min-h-12 rounded-xl border border-slate-300 bg-white px-4">
           <option value="">{messages.allSeverity}</option>
@@ -309,6 +331,7 @@ export default async function ControlTowerPage({ searchParams }: PageProps) {
           <option value="inbound">{messages.inbound}</option>
           <option value="damage">{messages.damage}</option>
           <option value="stalled">{messages.stalled}</option>
+          <option value="revenue">{messages.revenueCategory}</option>
         </select>
         <button className="min-h-12 rounded-xl bg-[#162033] px-5 font-bold text-white" type="submit">{messages.filter}</button>
         {(selectedSeverity || selectedCategory) && <Link href="/control-tower" className="inline-flex min-h-12 items-center justify-center rounded-xl border border-slate-300 px-5 font-bold text-[#162033]">{messages.clear}</Link>}
@@ -316,7 +339,7 @@ export default async function ControlTowerPage({ searchParams }: PageProps) {
 
       {filtered.length ? (
         <section className="mt-6 space-y-4" aria-label={messages.needsAttention}>
-          {filtered.map((item) => <ExceptionCard key={item.id} item={item} locale={locale} canManage={canManage} />)}
+          {filtered.map((item) => <ExceptionCard key={item.id} item={item} locale={locale} canManage={canManage} canReview={canReview} />)}
         </section>
       ) : (
         <section className="mt-6 rounded-3xl border border-dashed border-slate-300 bg-white px-6 py-14 text-center">
@@ -330,7 +353,7 @@ export default async function ControlTowerPage({ searchParams }: PageProps) {
   );
 }
 
-function ExceptionCard({ item, locale, canManage }: { item: ExceptionItem; locale: Locale; canManage: boolean }) {
+function ExceptionCard({ item, locale, canManage, canReview }: { item: ExceptionItem; locale: Locale; canManage: boolean; canReview: boolean }) {
   const messages = copy[locale];
   return (
     <article className="overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-sm">
@@ -386,7 +409,7 @@ function ExceptionCard({ item, locale, canManage }: { item: ExceptionItem; local
         ) : null}
 
         <div className="mt-6 flex flex-col justify-between gap-3 lg:flex-row lg:items-end">
-          {item.exceptionCaseId ? (
+          {item.exceptionCaseId && canReview ? (
             <ExceptionActions
               exceptionId={item.exceptionCaseId}
               status={item.status}
@@ -517,6 +540,7 @@ function normalizeSeverity(value: string): Severity {
 }
 
 function categoryForException(exceptionType: string): ExceptionCategory {
+  if (exceptionType.includes("unpriced") || exceptionType.includes("billing") || exceptionType.includes("revenue")) return "revenue";
   if (exceptionType.includes("damage")) return "damage";
   if (exceptionType.includes("stalled") || exceptionType.includes("overdue")) return "stalled";
   return "inbound";
@@ -527,6 +551,9 @@ function affectedUnitsForException(
   details: Record<string, unknown>,
   totals: { expected: number; received: number; damaged: number },
 ) {
+  if (exceptionType.includes("unpriced") || exceptionType.includes("billing")) {
+    return detailNumber(details, "quantity") || 1;
+  }
   if (exceptionType.includes("damage")) {
     return detailNumber(details, "damaged_increment") || totals.damaged;
   }
@@ -554,6 +581,9 @@ function localizedCaseSummary(
     const units = detailNumber(details, "overage_quantity");
     return `${units} ${units === 1 ? "unidad sobrante" : "unidades sobrantes"}`;
   }
+  if (exceptionType === "unpriced_billable_work") {
+    return `Trabajo ${asText(details.service_code)?.replaceAll("_", " ") ?? "facturable"} sin tarifa configurada`;
+  }
   return fallback;
 }
 
@@ -568,6 +598,11 @@ function persistedExplanation(exceptionType: string, locale: Locale) {
     return es
       ? "La cantidad recibida superó la esperada y requiere verificar SKU, conteo y disposición del excedente."
       : "Received quantity exceeded the expected amount and requires SKU, count, and disposition review.";
+  }
+  if (exceptionType === "unpriced_billable_work") {
+    return es
+      ? "FulfillOS capturó trabajo operativo real, pero no puede calcular su valor hasta que se apruebe una tarifa para el cliente."
+      : "FulfillOS captured real operational work, but cannot calculate its value until a customer rate is approved.";
   }
   return es
     ? "Una regla determinística creó este caso desde un evento operativo real."
@@ -585,6 +620,11 @@ function persistedRecommendation(exceptionType: string, locale: Locale) {
     return es
       ? "Realiza un recuento, confirma el SKU y acuerda si el excedente será aceptado o devuelto."
       : "Perform a recount, confirm the SKU, and decide whether the excess will be accepted or returned.";
+  }
+  if (exceptionType === "unpriced_billable_work") {
+    return es
+      ? "Configura la tarifa del cliente en Protección de Ingresos. FulfillOS valorizará el trabajo pendiente y resolverá esta excepción."
+      : "Configure the customer rate in Revenue Protection. FulfillOS will price the pending work and resolve this exception.";
   }
   return es
     ? "Abre la operación, verifica la evidencia y registra el resultado antes de cerrar el caso."
