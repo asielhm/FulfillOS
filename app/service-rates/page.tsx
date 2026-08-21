@@ -2,10 +2,11 @@ import Link from "next/link";
 import type { ReactNode } from "react";
 
 import { MetricCard, ModuleHeading, ModuleShell } from "@/components/module-shell";
-import { ServiceRateBuilder, templateRates, type ServiceRateDraft } from "@/components/service-rate-builder";
+import { ServiceRateBuilder, type ServiceRateDraft } from "@/components/service-rate-builder";
 import {
   billingUnits,
   formatUsd,
+  organizationRateTemplate,
   serviceDefinitions,
   serviceLabel,
   unitLabel,
@@ -163,7 +164,7 @@ export default async function ServiceRatesPage({ searchParams }: PageProps) {
   }
 
   const catalogRates = (catalogResult.data ?? []) as CatalogRate[];
-  const initialRates = catalogRates.length ? catalogRates.map(toRateDraft) : templateRates(locale);
+  const initialRates = catalogRates.length ? catalogRates.map(toRateDraft) : templateRateDrafts(locale);
   const customers = customersResult.data ?? [];
   const customerRates = customerRatesResult.data ?? [];
   const customerNames = new Map(customers.map((customer) => [customer.id, customer.company_name]));
@@ -291,6 +292,22 @@ function toRateDraft(rate: CatalogRate): ServiceRateDraft {
     maximumQuantity: rate.maximum_quantity === null ? "" : formatInputNumber(numeric(rate.maximum_quantity)),
     featured: rate.is_featured,
   };
+}
+
+function templateRateDrafts(locale: "en" | "es"): ServiceRateDraft[] {
+  return organizationRateTemplate.map((definition) => ({
+    key: definition.key,
+    serviceCode: definition.serviceCode,
+    name: definition.name[locale],
+    category: definition.category,
+    description: definition.description[locale],
+    unit: definition.unit,
+    pricingModel: definition.pricingModel,
+    price: formatInputNumber(definition.defaultPrice),
+    minimumQuantity: definition.minimumQuantity === null ? "" : String(definition.minimumQuantity),
+    maximumQuantity: definition.maximumQuantity === null ? "" : String(definition.maximumQuantity),
+    featured: definition.featured,
+  }));
 }
 
 function isPricingModel(value: string): value is ServiceRateDraft["pricingModel"] {

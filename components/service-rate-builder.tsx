@@ -370,7 +370,7 @@ function SmallButton({ label, onClick, danger = false }: { label: string; onClic
   return <button type="button" onClick={onClick} className={`min-h-10 rounded-xl px-3 text-xs font-black ${danger ? "bg-red-50 text-red-700 hover:bg-red-100" : "bg-slate-100 text-slate-700 hover:bg-slate-200"}`}>{label}</button>;
 }
 
-export function templateRates(locale: Locale): ServiceRateDraft[] {
+function templateRates(locale: Locale): ServiceRateDraft[] {
   return organizationRateTemplate.map((definition) => ({
     key: definition.key,
     serviceCode: definition.serviceCode,
