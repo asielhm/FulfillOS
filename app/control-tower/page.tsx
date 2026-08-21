@@ -130,7 +130,7 @@ export default async function ControlTowerPage({ searchParams }: PageProps) {
   const selectedCategory = valueOf(params.category);
   const messages = copy[locale];
 
-  const [shipmentsResult, customersResult, warehousesResult, casesResult, billableResult, proofResult] = await Promise.all([
+  const [shipmentsResult, customersResult, warehousesResult, casesResult, closedCasesResult, billableResult, proofResult] = await Promise.all([
     supabase
       .from("inbound_shipments")
       .select("id, customer_id, warehouse_id, inbound_number, status, expected_at, arrived_at, receiving_started_at, created_at, completed_at")
@@ -148,6 +148,13 @@ export default async function ControlTowerPage({ searchParams }: PageProps) {
       .order("created_at", { ascending: false })
       .limit(250),
     supabase
+      .from("exception_cases")
+      .select("entity_type, entity_id, exception_type, status, details")
+      .eq("organization_id", organization.id)
+      .in("status", ["resolved", "dismissed"])
+      .order("created_at", { ascending: false })
+      .limit(1000),
+    supabase
       .from("billable_events")
       .select("operational_event_id, billing_status, unit_price, amount")
       .eq("organization_id", organization.id)
@@ -161,8 +168,8 @@ export default async function ControlTowerPage({ searchParams }: PageProps) {
       .limit(1000),
   ]);
 
-  if (shipmentsResult.error || customersResult.error || warehousesResult.error || casesResult.error || billableResult.error || proofResult.error) {
-    throw new Error(shipmentsResult.error?.message ?? customersResult.error?.message ?? warehousesResult.error?.message ?? casesResult.error?.message ?? billableResult.error?.message ?? proofResult.error?.message ?? "Control Tower could not be loaded.");
+  if (shipmentsResult.error || customersResult.error || warehousesResult.error || casesResult.error || closedCasesResult.error || billableResult.error || proofResult.error) {
+    throw new Error(shipmentsResult.error?.message ?? customersResult.error?.message ?? warehousesResult.error?.message ?? casesResult.error?.message ?? closedCasesResult.error?.message ?? billableResult.error?.message ?? proofResult.error?.message ?? "Control Tower could not be loaded.");
   }
 
   const shipments = shipmentsResult.data ?? [];
@@ -264,8 +271,25 @@ export default async function ControlTowerPage({ searchParams }: PageProps) {
   });
 
   const persistedKeys = new Set(persistedExceptions.map((item) => `${item.shipmentId}:${item.category}`));
+  const closedCoverage = new Map<string, number>();
+
+  for (const exceptionCase of closedCasesResult.data ?? []) {
+    const details = asRecord(exceptionCase.details);
+    const shipmentId = asText(details.shipment_id) ?? itemShipmentMap.get(exceptionCase.entity_id) ?? null;
+    if (!shipmentId || !shipmentMap.has(shipmentId)) continue;
+
+    const category = categoryForException(exceptionCase.exception_type);
+    const total = totals.get(shipmentId) ?? { expected: 0, received: 0, damaged: 0 };
+    const key = `${shipmentId}:${category}`;
+    const coveredUnits = affectedUnitsForException(exceptionCase.exception_type, details, total);
+    closedCoverage.set(key, (closedCoverage.get(key) ?? 0) + coveredUnits);
+  }
+
   const derivedExceptions = buildExceptions(shipments, totals, customers, warehouses, locale)
-    .filter((item) => !persistedKeys.has(`${item.shipmentId}:${item.category}`));
+    .filter((item) => {
+      const key = `${item.shipmentId}:${item.category}`;
+      return !persistedKeys.has(key) && (closedCoverage.get(key) ?? 0) < item.affectedUnits;
+    });
   const rank: Record<Severity, number> = { critical: 4, high: 3, medium: 2, low: 1 };
   const exceptions = [...persistedExceptions, ...derivedExceptions].sort(
     (a, b) => rank[b.severity] - rank[a.severity] || b.affectedUnits - a.affectedUnits || new Date(a.detectedAt).getTime() - new Date(b.detectedAt).getTime(),
