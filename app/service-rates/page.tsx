@@ -2,14 +2,13 @@ import Link from "next/link";
 import type { ReactNode } from "react";
 
 import { MetricCard, ModuleHeading, ModuleShell } from "@/components/module-shell";
+import { ServiceRateBuilder, templateRates, type ServiceRateDraft } from "@/components/service-rate-builder";
 import {
   billingUnits,
   formatUsd,
-  organizationRateTemplate,
   serviceDefinitions,
   serviceLabel,
   unitLabel,
-  type OrganizationRateTemplateItem,
 } from "@/lib/revenue";
 import { getWorkspaceContext } from "@/lib/workspace";
 
@@ -19,6 +18,7 @@ type PageProps = {
     scope?: string | string[];
     updated?: string | string[];
     unchanged?: string | string[];
+    archived?: string | string[];
     events?: string | string[];
     exceptions?: string | string[];
     value?: string | string[];
@@ -31,33 +31,19 @@ type PageProps = {
 
 type CatalogRate = {
   id: string;
+  rate_key: string;
   service_code: string;
+  service_name: string;
+  category: string;
+  description: string | null;
   unit: string;
   pricing_model: string;
   unit_price: number | string;
   minimum_quantity: number | string | null;
   maximum_quantity: number | string | null;
+  is_featured: boolean;
   effective_from: string;
 };
-
-const categoryCopy = {
-  reception_storage: {
-    en: { eyebrow: "Reception & Storage Services", title: "Inbound and storage", body: "Standard charges for receiving cartons and pallets and holding palletized inventory." },
-    es: { eyebrow: "Servicios de recepción y almacenamiento", title: "Inbound y almacenamiento", body: "Cargos estándar por recibir cajas y pallets y almacenar inventario paletizado." },
-  },
-  labeling: {
-    en: { eyebrow: "Volume Pricing", title: "Labeling rates", body: "A monthly base fee plus the applicable piece-volume tier. Tiers remain explicit so billing never assumes the wrong price." },
-    es: { eyebrow: "Precios por volumen", title: "Tarifas de etiquetado", body: "Un cargo base mensual más el tramo aplicable por cantidad de piezas. Los tramos permanecen explícitos para evitar aplicar un precio incorrecto." },
-  },
-  preparation: {
-    en: { eyebrow: "Individual Services", title: "Preparation & repackaging", body: "Unit and set prices for common value-added preparation work." },
-    es: { eyebrow: "Servicios individuales", title: "Preparación y reempaque", body: "Precios por unidad y set para los trabajos de preparación más habituales." },
-  },
-  special_jobs: {
-    en: { eyebrow: "Special Jobs", title: "Hourly labor", body: "A transparent hourly rate for non-standard warehouse work." },
-    es: { eyebrow: "Trabajos especiales", title: "Mano de obra por hora", body: "Una tarifa horaria transparente para trabajos no estándar del almacén." },
-  },
-} as const;
 
 const copy = {
   en: {
@@ -148,7 +134,7 @@ export default async function ServiceRatesPage({ searchParams }: PageProps) {
   const [catalogResult, customersResult, customerRatesResult] = await Promise.all([
     supabase
       .from("organization_service_rates")
-      .select("id, service_code, unit, pricing_model, unit_price, minimum_quantity, maximum_quantity, effective_from")
+      .select("id, rate_key, service_code, service_name, category, description, unit, pricing_model, unit_price, minimum_quantity, maximum_quantity, is_featured, effective_from")
       .eq("organization_id", organization.id)
       .is("effective_to", null)
       .order("effective_from", { ascending: false }),
@@ -177,11 +163,14 @@ export default async function ServiceRatesPage({ searchParams }: PageProps) {
   }
 
   const catalogRates = (catalogResult.data ?? []) as CatalogRate[];
+  const initialRates = catalogRates.length ? catalogRates.map(toRateDraft) : templateRates(locale);
   const customers = customersResult.data ?? [];
   const customerRates = customerRatesResult.data ?? [];
   const customerNames = new Map(customers.map((customer) => [customer.id, customer.company_name]));
+  const catalogServiceNames = new Map(catalogRates.map((rate) => [rate.service_code, rate.service_name]));
   const serviceCodes = Array.from(new Set([
     ...serviceDefinitions.map((definition) => definition.code),
+    ...catalogRates.map((rate) => rate.service_code),
     ...customerRates.map((rate) => rate.service_code),
   ])).sort((left, right) => serviceLabel(left, locale).localeCompare(serviceLabel(right, locale)));
 
@@ -219,55 +208,12 @@ export default async function ServiceRatesPage({ searchParams }: PageProps) {
 
       <section className="mt-7 grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
         <MetricCard label={messages.baseCard} value={organization.name} detail={messages.defaultNote} />
-        <MetricCard label={messages.services} value={String(organizationRateTemplate.length)} detail={messages.servicesDetail} />
-        <MetricCard label={messages.categories} value="4" detail={messages.categoriesDetail} />
+        <MetricCard label={messages.services} value={String(initialRates.length)} detail={messages.servicesDetail} />
+        <MetricCard label={messages.categories} value={String(new Set(initialRates.map((rate) => rate.category)).size)} detail={messages.categoriesDetail} />
         <MetricCard label={messages.status} value={catalogRates.length ? messages.active : messages.draft} detail={messages.statusDetail} />
       </section>
 
-      <form action="/api/service-rates" method="post" className="mt-7 space-y-6">
-        <div className="overflow-hidden rounded-3xl bg-[#162033] text-white shadow-sm">
-          <div className="grid gap-5 p-7 md:grid-cols-[1fr_auto] md:items-center">
-            <div>
-              <p className="text-xs font-black uppercase tracking-[0.16em] text-[#fdba2d]">{messages.baseCard}</p>
-              <h2 className="mt-2 text-2xl font-black">{organization.name}</h2>
-              <p className="mt-2 max-w-3xl text-sm leading-6 text-slate-300">{messages.defaultNote}</p>
-            </div>
-            <div className="rounded-2xl border border-white/15 bg-white/10 px-5 py-4 text-center">
-              <p className="text-xs font-bold uppercase tracking-wide text-slate-300">{messages.currency}</p>
-              <p className="mt-1 text-2xl font-black text-white">USD</p>
-            </div>
-          </div>
-        </div>
-
-        {(Object.keys(categoryCopy) as Array<keyof typeof categoryCopy>).map((category) => {
-          const categoryMessages = categoryCopy[category][locale];
-          const definitions = organizationRateTemplate.filter((definition) => definition.category === category);
-          return (
-            <section key={category} className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm sm:p-7">
-              <p className="text-xs font-black uppercase tracking-[0.16em] text-[#c7511f]">{categoryMessages.eyebrow}</p>
-              <h2 className="mt-2 text-2xl font-black text-[#162033]">{categoryMessages.title}</h2>
-              <p className="mt-2 max-w-3xl text-sm leading-6 text-slate-600">{categoryMessages.body}</p>
-              <div className={`mt-6 grid gap-4 ${category === "labeling" ? "lg:grid-cols-2" : "md:grid-cols-2 xl:grid-cols-3"}`}>
-                {definitions.map((definition) => (
-                  <RateEditor
-                    key={definition.key}
-                    definition={definition}
-                    locale={locale}
-                    currentPrice={catalogPrice(definition, catalogRates)}
-                    mostCommon={messages.mostCommon}
-                  />
-                ))}
-              </div>
-            </section>
-          );
-        })}
-
-        <div className="sticky bottom-4 z-10 flex justify-end">
-          <button type="submit" className="min-h-14 rounded-2xl bg-[#f59e0b] px-7 font-black text-[#162033] shadow-lg shadow-amber-900/15 transition hover:bg-[#fdba2d]">
-            {messages.saveAll}
-          </button>
-        </div>
-      </form>
+      <ServiceRateBuilder initialRates={initialRates} locale={locale} />
 
       <section id="customer-rate" className="mt-7 rounded-3xl border border-slate-200 bg-white p-6 shadow-sm sm:p-7">
         <p className="text-xs font-black uppercase tracking-[0.16em] text-violet-700">{locale === "es" ? "Acuerdos comerciales" : "Commercial agreements"}</p>
@@ -283,7 +229,7 @@ export default async function ServiceRatesPage({ searchParams }: PageProps) {
             </Field>
             <Field label={messages.service}>
               <select name="serviceCode" defaultValue={requestedService} required className="min-h-12 w-full rounded-xl border border-slate-300 bg-white px-4">
-                {serviceCodes.map((code) => <option key={code} value={code}>{serviceLabel(code, locale)}</option>)}
+                {serviceCodes.map((code) => <option key={code} value={code}>{catalogServiceNames.get(code) ?? serviceLabel(code, locale)}</option>)}
               </select>
             </Field>
             <Field label={messages.unit}>
@@ -313,7 +259,7 @@ export default async function ServiceRatesPage({ searchParams }: PageProps) {
           <div className="mt-6 overflow-x-auto">
             <table className="w-full min-w-[720px] text-left text-sm">
               <thead><tr className="border-b border-slate-200 text-xs uppercase tracking-wide text-slate-400"><th className="pb-3 pr-4">{messages.customer}</th><th className="pb-3 pr-4">{messages.service}</th><th className="pb-3 pr-4">{messages.unit}</th><th className="pb-3 pr-4">{messages.price}</th><th className="pb-3">{locale === "es" ? "Vigente desde" : "Effective from"}</th></tr></thead>
-              <tbody>{customerRates.map((rate) => <tr key={rate.id} className="border-b border-slate-100 last:border-0"><td className="py-4 pr-4 font-bold text-[#162033]">{customerNames.get(rate.customer_id) ?? (locale === "es" ? "Cliente" : "Customer")}</td><td className="py-4 pr-4">{serviceLabel(rate.service_code, locale)}</td><td className="py-4 pr-4">{unitLabel(rate.unit, locale)}</td><td className="py-4 pr-4 font-black text-[#067d62]">{formatUsd(numeric(rate.unit_price), locale)}</td><td className="py-4 text-slate-500">{formatDate(rate.effective_from, locale)}</td></tr>)}</tbody>
+              <tbody>{customerRates.map((rate) => <tr key={rate.id} className="border-b border-slate-100 last:border-0"><td className="py-4 pr-4 font-bold text-[#162033]">{customerNames.get(rate.customer_id) ?? (locale === "es" ? "Cliente" : "Customer")}</td><td className="py-4 pr-4">{rate.service_name || catalogServiceNames.get(rate.service_code) || serviceLabel(rate.service_code, locale)}</td><td className="py-4 pr-4">{unitLabel(rate.unit, locale)}</td><td className="py-4 pr-4 font-black text-[#067d62]">{formatUsd(numeric(rate.unit_price), locale)}</td><td className="py-4 text-slate-500">{formatDate(rate.effective_from, locale)}</td></tr>)}</tbody>
             </table>
           </div>
         ) : <p className="mt-6 rounded-2xl bg-slate-50 p-5 text-sm text-slate-500">{messages.noAgreements}</p>}
@@ -322,60 +268,8 @@ export default async function ServiceRatesPage({ searchParams }: PageProps) {
   );
 }
 
-function RateEditor({
-  definition,
-  locale,
-  currentPrice,
-  mostCommon,
-}: {
-  definition: OrganizationRateTemplateItem;
-  locale: "en" | "es";
-  currentPrice: number;
-  mostCommon: string;
-}) {
-  return (
-    <label className={`relative block rounded-2xl border p-5 transition focus-within:ring-2 focus-within:ring-[#f59e0b] ${definition.featured ? "border-[#f59e0b] bg-amber-50" : "border-slate-200 bg-slate-50"}`}>
-      {definition.featured ? <span className="absolute right-4 top-4 rounded-full bg-[#f59e0b] px-3 py-1 text-[10px] font-black uppercase tracking-wide text-[#162033]">{mostCommon}</span> : null}
-      <span className={`block font-black text-[#162033] ${definition.featured ? "pr-28" : ""}`}>{definition.name[locale]}</span>
-      <span className="mt-1 block min-h-10 text-sm leading-5 text-slate-500">{definition.description[locale]}</span>
-      <span className="mt-4 flex items-center gap-2">
-        <span className="text-lg font-black text-slate-500">$</span>
-        <input
-          name={`price-${definition.key}`}
-          type="number"
-          min="0"
-          max="1000000"
-          step="0.0001"
-          inputMode="decimal"
-          defaultValue={formatInputPrice(currentPrice)}
-          required
-          aria-label={`${definition.name[locale]} USD`}
-          className="min-h-12 min-w-0 flex-1 rounded-xl border border-slate-300 bg-white px-4 text-lg font-black text-[#162033] outline-none focus:border-[#f59e0b]"
-        />
-        <span className="max-w-24 text-xs font-semibold leading-4 text-slate-500">USD {definition.priceSuffix[locale]}</span>
-      </span>
-    </label>
-  );
-}
-
 function Field({ label, children }: { label: string; children: ReactNode }) {
   return <label className="block"><span className="mb-2 block text-sm font-bold text-[#162033]">{label}</span>{children}</label>;
-}
-
-function catalogPrice(definition: OrganizationRateTemplateItem, rates: CatalogRate[]) {
-  const rate = rates.find((candidate) => (
-    candidate.service_code === definition.serviceCode
-    && candidate.unit === definition.unit
-    && candidate.pricing_model === definition.pricingModel
-    && nullableNumeric(candidate.minimum_quantity) === definition.minimumQuantity
-    && nullableNumeric(candidate.maximum_quantity) === definition.maximumQuantity
-  ));
-  return rate ? numeric(rate.unit_price) : definition.defaultPrice;
-}
-
-function nullableNumeric(value: number | string | null) {
-  if (value === null) return null;
-  return numeric(value);
 }
 
 function numeric(value: number | string | null) {
@@ -383,7 +277,27 @@ function numeric(value: number | string | null) {
   return Number.isFinite(parsed) ? parsed : 0;
 }
 
-function formatInputPrice(value: number) {
+function toRateDraft(rate: CatalogRate): ServiceRateDraft {
+  return {
+    key: rate.rate_key,
+    serviceCode: rate.service_code,
+    name: rate.service_name,
+    category: rate.category,
+    description: rate.description ?? "",
+    unit: rate.unit,
+    pricingModel: isPricingModel(rate.pricing_model) ? rate.pricing_model : "flat",
+    price: formatInputNumber(numeric(rate.unit_price)),
+    minimumQuantity: rate.minimum_quantity === null ? "" : formatInputNumber(numeric(rate.minimum_quantity)),
+    maximumQuantity: rate.maximum_quantity === null ? "" : formatInputNumber(numeric(rate.maximum_quantity)),
+    featured: rate.is_featured,
+  };
+}
+
+function isPricingModel(value: string): value is ServiceRateDraft["pricingModel"] {
+  return value === "flat" || value === "volume_tier" || value === "monthly_base";
+}
+
+function formatInputNumber(value: number) {
   return value.toFixed(4).replace(/\.?0+$/, "");
 }
 
@@ -408,9 +322,10 @@ function validOption(value: string, allowed: readonly string[]) {
 function catalogSuccessText(params: Awaited<PageProps["searchParams"]>, locale: "en" | "es") {
   const updated = safeInteger(first(params.updated));
   const unchanged = safeInteger(first(params.unchanged));
+  const archived = safeInteger(first(params.archived));
   return locale === "es"
-    ? `${updated} regla(s) actualizada(s) · ${unchanged} sin cambios.`
-    : `${updated} rule(s) updated · ${unchanged} unchanged.`;
+    ? `${updated} regla(s) actualizada(s) · ${unchanged} sin cambios · ${archived} archivada(s).`
+    : `${updated} rule(s) updated · ${unchanged} unchanged · ${archived} archived.`;
 }
 
 function customerSuccessText(params: Awaited<PageProps["searchParams"]>, locale: "en" | "es") {
