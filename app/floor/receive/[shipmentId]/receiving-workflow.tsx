@@ -14,6 +14,7 @@ import {
 
 import { PhotoEvidenceCapture } from "@/components/floor/photo-evidence-capture";
 import { LocationSelect } from "@/components/floor/location-select";
+import { ProductSelect } from "@/components/floor/product-select";
 import { QuantityInput } from "@/components/floor/quantity-input";
 import { ScanInput } from "@/components/floor/scan-input";
 import type { Locale } from "@/lib/i18n";
@@ -162,6 +163,21 @@ export function ReceivingWorkflow({
     setSubmitError(null);
   }
 
+  function activateProduct(match: ReceivingItem) {
+    const nextRemaining = Math.max(
+      match.expected_quantity - match.received_quantity,
+      0,
+    );
+    setActiveItemId(match.id);
+    setQuantity(nextRemaining || 1);
+    setDamaged(0);
+    setNote("");
+    setPhotoFile(null);
+    setProductError(false);
+    setProductMessage(`${match.product.sku} · ${match.product.title}`);
+    setSubmitError(null);
+  }
+
   function scanProduct(value: string) {
     const code = normalized(value);
     const match = items.find((item) =>
@@ -180,18 +196,12 @@ export function ReceivingWorkflow({
       setActiveItemId(null);
       return;
     }
-    const nextRemaining = Math.max(
-      match.expected_quantity - match.received_quantity,
-      0,
-    );
-    setActiveItemId(match.id);
-    setQuantity(nextRemaining || 1);
-    setDamaged(0);
-    setNote("");
-    setPhotoFile(null);
-    setProductError(false);
-    setProductMessage(`${match.product.sku} · ${match.product.title}`);
-    setSubmitError(null);
+    activateProduct(match);
+  }
+
+  function selectProduct(itemId: string) {
+    const match = items.find((item) => item.id === itemId);
+    if (match) activateProduct(match);
   }
 
   async function attachPhoto(operationalEventId: string, file: File) {
@@ -543,6 +553,22 @@ export function ReceivingWorkflow({
                   message: productMessage,
                 }}
                 onScan={scanProduct}
+              />
+              <div className="my-4 flex items-center gap-3" aria-hidden="true">
+                <span className="h-px flex-1 bg-slate-200" />
+                <span className="text-xs font-black uppercase tracking-[0.12em] text-slate-400">
+                  {es ? "o elegí" : "or choose"}
+                </span>
+                <span className="h-px flex-1 bg-slate-200" />
+              </div>
+              <ProductSelect
+                id="receiving-product"
+                label={es ? "Producto del inbound" : "Inbound product"}
+                placeholder={es ? "Elegir SKU o producto" : "Choose SKU or product"}
+                items={items}
+                selectedId={activeItemId}
+                locale={locale}
+                onSelect={selectProduct}
               />
             </div>
           ) : (
