@@ -1,5 +1,6 @@
 import Link from "next/link";
 
+import { ExceptionActions } from "@/components/exception-actions";
 import { MetricCard, ModuleHeading, ModuleShell } from "@/components/module-shell";
 import type { Locale } from "@/lib/i18n";
 import { getWorkspaceContext } from "@/lib/workspace";
@@ -23,6 +24,12 @@ type ExceptionItem = {
   received: number;
   damaged: number;
   detectedAt: string;
+  exceptionCaseId: string | null;
+  status: "open" | "reviewing";
+  assignedTo: string | null;
+  proofCount: number;
+  unpricedWork: number;
+  revenueAtRisk: number;
 };
 
 type PageProps = {
@@ -41,14 +48,12 @@ const copy = {
     units: "Affected units",
     unitsDetail: "Units involved across open exceptions",
     revenue: "Revenue at risk",
-    revenueValue: "Not configured",
-    revenueDetail: "Pricing and billable-event ledger required",
+    revenueDetail: (unpriced: number) => unpriced ? `${unpriced} unpriced billable ${unpriced === 1 ? "event" : "events"}` : "No uncaptured priced work detected",
     proof: "Proof of Work",
-    proofValue: "Foundation needed",
-    proofDetail: "Audit Trail exists; physical evidence ledger does not",
+    proofDetail: (missing: number) => missing ? `${missing} open ${missing === 1 ? "case is" : "cases are"} missing linked proof` : "Evidence is linked to open operational cases",
     headline: (count: number) => `FulfillOS found ${count} ${count === 1 ? "thing" : "things"} worth your attention.`,
     headlineEmpty: "Nothing requires attention from the current deterministic rules.",
-    honest: "Revenue Protection and Proof of Work are shown as unavailable until their durable ledgers and pricing exist. FulfillOS will not invent amounts or treat software audit records as physical proof.",
+    honest: "Values come from real exception, evidence and billable-event records. Work without a configured price is shown as unpriced instead of receiving a fabricated dollar value.",
     needsAttention: "Needs attention",
     allSeverity: "All priorities",
     allCategory: "All categories",
@@ -63,6 +68,10 @@ const copy = {
     why: "Why FulfillOS flagged this",
     action: "Suggested action",
     view: "Open inbound and review",
+    viewProof: "View evidence",
+    reviewing: "Reviewing",
+    openStatus: "Open",
+    unpriced: "Unpriced work",
     emptyTitle: "Your exception inbox is clear",
     emptyBody: "No inbound records match this view. New exceptions will appear here from real operational data.",
     limited: "Showing rules evaluated against the 250 most recent inbound shipments for fast initial loading.",
@@ -78,14 +87,12 @@ const copy = {
     units: "Unidades afectadas",
     unitsDetail: "Unidades involucradas en excepciones abiertas",
     revenue: "Ingresos en riesgo",
-    revenueValue: "No configurado",
-    revenueDetail: "Requiere tarifas y ledger de eventos facturables",
+    revenueDetail: (unpriced: number) => unpriced ? `${unpriced} ${unpriced === 1 ? "evento facturable sin precio" : "eventos facturables sin precio"}` : "No se detectó trabajo valorizado sin capturar",
     proof: "Prueba de Trabajo",
-    proofValue: "Falta la base",
-    proofDetail: "Existe Audit Trail; no el ledger de evidencia física",
+    proofDetail: (missing: number) => missing ? `${missing} ${missing === 1 ? "caso abierto no tiene" : "casos abiertos no tienen"} evidencia vinculada` : "La evidencia está vinculada a los casos operativos abiertos",
     headline: (count: number) => `FulfillOS encontró ${count} ${count === 1 ? "asunto" : "asuntos"} que requieren tu atención.`,
     headlineEmpty: "Nada requiere atención según las reglas determinísticas actuales.",
-    honest: "Revenue Protection y Proof of Work figuran como no disponibles hasta que existan sus ledgers durables y tarifas. FulfillOS no inventará importes ni tratará auditoría de software como evidencia física.",
+    honest: "Los valores provienen de excepciones, evidencias y eventos facturables reales. El trabajo sin tarifa configurada se muestra como no valorizado, sin inventar importes.",
     needsAttention: "Requiere atención",
     allSeverity: "Todas las prioridades",
     allCategory: "Todas las categorías",
@@ -100,6 +107,10 @@ const copy = {
     why: "Por qué FulfillOS lo señaló",
     action: "Acción sugerida",
     view: "Abrir recepción y revisar",
+    viewProof: "Ver evidencia",
+    reviewing: "En revisión",
+    openStatus: "Abierta",
+    unpriced: "Trabajo sin precio",
     emptyTitle: "Tu bandeja de excepciones está limpia",
     emptyBody: "Ningún inbound coincide con esta vista. Las nuevas excepciones aparecerán aquí desde datos operativos reales.",
     limited: "Las reglas se evalúan sobre los 250 inbound más recientes para mantener una carga inicial rápida.",
@@ -113,7 +124,7 @@ export default async function ControlTowerPage({ searchParams }: PageProps) {
   const selectedCategory = valueOf(params.category);
   const messages = copy[locale];
 
-  const [shipmentsResult, customersResult, warehousesResult] = await Promise.all([
+  const [shipmentsResult, customersResult, warehousesResult, casesResult, billableResult, proofResult] = await Promise.all([
     supabase
       .from("inbound_shipments")
       .select("id, customer_id, warehouse_id, inbound_number, status, expected_at, created_at, completed_at")
@@ -123,18 +134,37 @@ export default async function ControlTowerPage({ searchParams }: PageProps) {
       .limit(250),
     supabase.from("customers").select("id, company_name").eq("organization_id", organization.id),
     supabase.from("warehouses").select("id, name, code").eq("organization_id", organization.id),
+    supabase
+      .from("exception_cases")
+      .select("id, source_event_id, entity_type, entity_id, exception_type, severity, status, summary, details, assigned_to, created_at")
+      .eq("organization_id", organization.id)
+      .in("status", ["open", "reviewing"])
+      .order("created_at", { ascending: false })
+      .limit(250),
+    supabase
+      .from("billable_events")
+      .select("operational_event_id, billing_status, unit_price, amount")
+      .eq("organization_id", organization.id)
+      .order("created_at", { ascending: false })
+      .limit(1000),
+    supabase
+      .from("proof_of_work_evidence")
+      .select("operational_event_id")
+      .eq("organization_id", organization.id)
+      .order("captured_at", { ascending: false })
+      .limit(1000),
   ]);
 
-  if (shipmentsResult.error || customersResult.error || warehousesResult.error) {
-    throw new Error(shipmentsResult.error?.message ?? customersResult.error?.message ?? warehousesResult.error?.message ?? "Control Tower could not be loaded.");
+  if (shipmentsResult.error || customersResult.error || warehousesResult.error || casesResult.error || billableResult.error || proofResult.error) {
+    throw new Error(shipmentsResult.error?.message ?? customersResult.error?.message ?? warehousesResult.error?.message ?? casesResult.error?.message ?? billableResult.error?.message ?? proofResult.error?.message ?? "Control Tower could not be loaded.");
   }
 
   const shipments = shipmentsResult.data ?? [];
   const shipmentIds = shipments.map((shipment) => shipment.id);
   const itemsResult = shipmentIds.length
-    ? await supabase
+      ? await supabase
         .from("inbound_shipment_items")
-        .select("shipment_id, expected_quantity, received_quantity, damaged_quantity")
+        .select("id, shipment_id, expected_quantity, received_quantity, damaged_quantity")
         .in("shipment_id", shipmentIds)
     : { data: [], error: null };
 
@@ -151,10 +181,101 @@ export default async function ControlTowerPage({ searchParams }: PageProps) {
 
   const customers = new Map((customersResult.data ?? []).map((customer) => [customer.id, customer.company_name]));
   const warehouses = new Map((warehousesResult.data ?? []).map((warehouse) => [warehouse.id, warehouse.code ? `${warehouse.name} · ${warehouse.code}` : warehouse.name]));
-  const exceptions = buildExceptions(shipments, totals, customers, warehouses, locale);
+  const shipmentMap = new Map(shipments.map((shipment) => [shipment.id, shipment]));
+  const itemShipmentMap = new Map((itemsResult.data ?? []).map((item) => [item.id, item.shipment_id]));
+
+  const proofByEvent = new Map<string, number>();
+  for (const proof of proofResult.data ?? []) {
+    proofByEvent.set(proof.operational_event_id, (proofByEvent.get(proof.operational_event_id) ?? 0) + 1);
+  }
+
+  const billableByEvent = new Map<string, { unpriced: number; amount: number }>();
+  const openBillable = (billableResult.data ?? []).filter(
+    (event) => !["invoiced", "void", "cancelled"].includes(event.billing_status),
+  );
+  for (const event of openBillable) {
+    if (!event.operational_event_id) continue;
+    const current = billableByEvent.get(event.operational_event_id) ?? { unpriced: 0, amount: 0 };
+    const amount = Number(event.amount);
+    current.amount += Number.isFinite(amount) ? amount : 0;
+    if (event.billing_status === "unpriced" || event.unit_price === null || event.amount === null) {
+      current.unpriced += 1;
+    }
+    billableByEvent.set(event.operational_event_id, current);
+  }
+
+  const assignedUserIds = Array.from(
+    new Set((casesResult.data ?? []).map((item) => item.assigned_to).filter((value): value is string => Boolean(value))),
+  );
+  const teamResult = assignedUserIds.length
+    ? await supabase
+        .from("team_profiles")
+        .select("user_id, display_name")
+        .eq("organization_id", organization.id)
+        .in("user_id", assignedUserIds)
+    : { data: [], error: null };
+
+  if (teamResult.error) throw new Error(teamResult.error.message);
+  const teamMap = new Map((teamResult.data ?? []).map((profile) => [profile.user_id, profile.display_name]));
+
+  const persistedExceptions = (casesResult.data ?? []).flatMap((exceptionCase): ExceptionItem[] => {
+    const details = asRecord(exceptionCase.details);
+    const shipmentId = asText(details.shipment_id) ?? itemShipmentMap.get(exceptionCase.entity_id) ?? null;
+    if (!shipmentId) return [];
+
+    const shipment = shipmentMap.get(shipmentId);
+    if (!shipment) return [];
+
+    const total = totals.get(shipmentId) ?? { expected: 0, received: 0, damaged: 0 };
+    const eventBilling = exceptionCase.source_event_id
+      ? billableByEvent.get(exceptionCase.source_event_id) ?? { unpriced: 0, amount: 0 }
+      : { unpriced: 0, amount: 0 };
+    const category = categoryForException(exceptionCase.exception_type);
+
+    return [{
+      id: exceptionCase.id,
+      exceptionCaseId: exceptionCase.id,
+      shipmentId,
+      inboundNumber: shipment.inbound_number,
+      customer: customers.get(shipment.customer_id) ?? (locale === "es" ? "Cliente no disponible" : "Customer unavailable"),
+      warehouse: warehouses.get(shipment.warehouse_id) ?? (locale === "es" ? "Almacén no disponible" : "Warehouse unavailable"),
+      severity: normalizeSeverity(exceptionCase.severity),
+      category,
+      affectedUnits: affectedUnitsForException(exceptionCase.exception_type, details, total),
+      summary: localizedCaseSummary(exceptionCase.exception_type, exceptionCase.summary, details, locale),
+      explanation: persistedExplanation(exceptionCase.exception_type, locale),
+      recommendation: persistedRecommendation(exceptionCase.exception_type, locale),
+      expected: total.expected,
+      received: total.received,
+      damaged: total.damaged,
+      detectedAt: exceptionCase.created_at,
+      status: exceptionCase.status === "reviewing" ? "reviewing" : "open",
+      assignedTo: exceptionCase.assigned_to ? teamMap.get(exceptionCase.assigned_to) ?? (locale === "es" ? "Miembro del equipo" : "Team member") : null,
+      proofCount: exceptionCase.source_event_id ? proofByEvent.get(exceptionCase.source_event_id) ?? 0 : 0,
+      unpricedWork: eventBilling.unpriced,
+      revenueAtRisk: eventBilling.amount,
+    }];
+  });
+
+  const persistedKeys = new Set(persistedExceptions.map((item) => `${item.shipmentId}:${item.category}`));
+  const derivedExceptions = buildExceptions(shipments, totals, customers, warehouses, locale)
+    .filter((item) => !persistedKeys.has(`${item.shipmentId}:${item.category}`));
+  const rank: Record<Severity, number> = { critical: 4, high: 3, medium: 2, low: 1 };
+  const exceptions = [...persistedExceptions, ...derivedExceptions].sort(
+    (a, b) => rank[b.severity] - rank[a.severity] || b.affectedUnits - a.affectedUnits || new Date(a.detectedAt).getTime() - new Date(b.detectedAt).getTime(),
+  );
   const filtered = exceptions.filter((item) => (!selectedSeverity || item.severity === selectedSeverity) && (!selectedCategory || item.category === selectedCategory));
   const urgent = exceptions.filter((item) => item.severity === "critical" || item.severity === "high").length;
   const affectedUnits = exceptions.reduce((sum, item) => sum + item.affectedUnits, 0);
+  const revenueAtRisk = openBillable.reduce((sum, event) => {
+    const amount = Number(event.amount);
+    return sum + (Number.isFinite(amount) ? amount : 0);
+  }, 0);
+  const unpricedWork = openBillable.filter(
+    (event) => event.billing_status === "unpriced" || event.unit_price === null || event.amount === null,
+  ).length;
+  const missingProof = persistedExceptions.filter((item) => item.proofCount === 0).length;
+  const canManage = ["owner", "admin", "manager"].includes(membership.role);
 
   return (
     <ModuleShell organizationName={organization.name} email={email} role={membership.role}>
@@ -164,8 +285,12 @@ export default async function ControlTowerPage({ searchParams }: PageProps) {
         <MetricCard label={messages.open} value={String(exceptions.length)} detail={messages.openDetail} />
         <MetricCard label={messages.urgent} value={String(urgent)} detail={messages.urgentDetail} />
         <MetricCard label={messages.units} value={String(affectedUnits)} detail={messages.unitsDetail} />
-        <MetricCard label={messages.revenue} value={messages.revenueValue} detail={messages.revenueDetail} />
-        <MetricCard label={messages.proof} value={messages.proofValue} detail={messages.proofDetail} />
+        <MetricCard
+          label={messages.revenue}
+          value={revenueAtRisk > 0 ? formatCurrency(revenueAtRisk, locale) : unpricedWork > 0 ? messages.unpriced : "$0.00"}
+          detail={messages.revenueDetail(unpricedWork)}
+        />
+        <MetricCard label={messages.proof} value={String((proofResult.data ?? []).length)} detail={messages.proofDetail(missingProof)} />
       </section>
 
       <section className="mt-6 rounded-3xl bg-[#162033] p-6 text-white shadow-sm sm:p-8">
@@ -191,7 +316,7 @@ export default async function ControlTowerPage({ searchParams }: PageProps) {
 
       {filtered.length ? (
         <section className="mt-6 space-y-4" aria-label={messages.needsAttention}>
-          {filtered.map((item) => <ExceptionCard key={item.id} item={item} locale={locale} />)}
+          {filtered.map((item) => <ExceptionCard key={item.id} item={item} locale={locale} canManage={canManage} />)}
         </section>
       ) : (
         <section className="mt-6 rounded-3xl border border-dashed border-slate-300 bg-white px-6 py-14 text-center">
@@ -205,7 +330,7 @@ export default async function ControlTowerPage({ searchParams }: PageProps) {
   );
 }
 
-function ExceptionCard({ item, locale }: { item: ExceptionItem; locale: Locale }) {
+function ExceptionCard({ item, locale, canManage }: { item: ExceptionItem; locale: Locale; canManage: boolean }) {
   const messages = copy[locale];
   return (
     <article className="overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-sm">
@@ -213,10 +338,25 @@ function ExceptionCard({ item, locale }: { item: ExceptionItem; locale: Locale }
       <div className="p-6 sm:p-7">
         <div className="flex flex-col justify-between gap-5 lg:flex-row">
           <div>
-            <span className={`inline-flex rounded-full px-3 py-1 text-xs font-black uppercase tracking-wide ${severityBadge(item.severity)}`}>{severityLabel(item.severity, locale)}</span>
+            <div className="flex flex-wrap gap-2">
+              <span className={`inline-flex rounded-full px-3 py-1 text-xs font-black uppercase tracking-wide ${severityBadge(item.severity)}`}>{severityLabel(item.severity, locale)}</span>
+              <span className={`inline-flex rounded-full px-3 py-1 text-xs font-black uppercase tracking-wide ${item.status === "reviewing" ? "bg-sky-100 text-sky-800" : "bg-slate-100 text-slate-700"}`}>
+                {item.status === "reviewing" ? messages.reviewing : messages.openStatus}
+              </span>
+              {item.proofCount > 0 ? (
+                <span className="inline-flex rounded-full bg-emerald-100 px-3 py-1 text-xs font-black text-emerald-800">
+                  ✓ {item.proofCount} Proof
+                </span>
+              ) : item.exceptionCaseId ? (
+                <span className="inline-flex rounded-full bg-red-100 px-3 py-1 text-xs font-black text-red-800">
+                  {locale === "es" ? "Falta evidencia" : "Missing proof"}
+                </span>
+              ) : null}
+            </div>
             <h2 className="mt-4 text-2xl font-extrabold text-[#162033]">{item.inboundNumber}</h2>
             <p className="mt-1 font-semibold text-slate-700">{item.customer}</p>
             <p className="text-sm text-slate-500">{item.warehouse}</p>
+            {item.assignedTo ? <p className="mt-2 text-sm font-semibold text-sky-800">{locale === "es" ? "Asignada a" : "Assigned to"}: {item.assignedTo}</p> : null}
           </div>
           <div className="lg:text-right">
             <p className="text-xl font-extrabold text-[#162033]">{item.summary}</p>
@@ -235,8 +375,33 @@ function ExceptionCard({ item, locale }: { item: ExceptionItem; locale: Locale }
           <div className="rounded-2xl bg-amber-50 p-4"><p className="text-xs font-bold uppercase tracking-wide text-amber-700">{messages.action}</p><p className="mt-2 text-sm leading-6 text-slate-700">{item.recommendation}</p></div>
         </div>
 
-        <div className="mt-6 flex justify-end">
-          <Link href={`/inbound/${item.shipmentId}`} className="inline-flex min-h-12 items-center justify-center rounded-xl bg-[#f59e0b] px-5 font-bold text-[#162033] transition hover:bg-[#fbbf24]">{messages.view} →</Link>
+        {(item.unpricedWork > 0 || item.revenueAtRisk > 0) ? (
+          <div className="mt-4 rounded-2xl border border-violet-200 bg-violet-50 p-4">
+            <p className="text-xs font-bold uppercase tracking-wide text-violet-700">Revenue Protection</p>
+            <p className="mt-1 font-bold text-violet-950">
+              {item.revenueAtRisk > 0 ? formatCurrency(item.revenueAtRisk, locale) : messages.unpriced}
+              {item.unpricedWork > 0 ? ` · ${item.unpricedWork} ${locale === "es" ? "evento(s) sin precio" : "unpriced event(s)"}` : ""}
+            </p>
+          </div>
+        ) : null}
+
+        <div className="mt-6 flex flex-col justify-between gap-3 lg:flex-row lg:items-end">
+          {item.exceptionCaseId ? (
+            <ExceptionActions
+              exceptionId={item.exceptionCaseId}
+              status={item.status}
+              locale={locale}
+              canManage={canManage}
+            />
+          ) : <div />}
+          <div className="flex flex-col gap-2 sm:flex-row">
+            {item.proofCount > 0 ? (
+              <Link href={`/inbound/${item.shipmentId}#proof-of-work`} className="inline-flex min-h-12 items-center justify-center rounded-xl border border-slate-300 px-5 font-bold text-[#162033] transition hover:bg-slate-50">
+                {messages.viewProof}
+              </Link>
+            ) : null}
+            <Link href={`/inbound/${item.shipmentId}`} className="inline-flex min-h-12 items-center justify-center rounded-xl bg-[#f59e0b] px-5 font-bold text-[#162033] transition hover:bg-[#fbbf24]">{messages.view} →</Link>
+          </div>
         </div>
       </div>
     </article>
@@ -270,6 +435,12 @@ function buildExceptions(
       received: total.received,
       damaged: total.damaged,
       detectedAt: shipment.completed_at ?? shipment.expected_at ?? shipment.created_at,
+      exceptionCaseId: null,
+      status: "open" as const,
+      assignedTo: null,
+      proofCount: 0,
+      unpricedWork: 0,
+      revenueAtRisk: 0,
     };
 
     if (shipment.status === "completed" && difference !== 0) {
@@ -322,6 +493,109 @@ function buildExceptions(
 
   const rank: Record<Severity, number> = { critical: 4, high: 3, medium: 2, low: 1 };
   return exceptions.sort((a, b) => rank[b.severity] - rank[a.severity] || b.affectedUnits - a.affectedUnits || new Date(a.detectedAt).getTime() - new Date(b.detectedAt).getTime());
+}
+
+function asRecord(value: unknown): Record<string, unknown> {
+  return value && typeof value === "object" && !Array.isArray(value)
+    ? (value as Record<string, unknown>)
+    : {};
+}
+
+function asText(value: unknown) {
+  return typeof value === "string" && value.trim() ? value.trim() : null;
+}
+
+function detailNumber(details: Record<string, unknown>, key: string) {
+  const value = Number(details[key]);
+  return Number.isFinite(value) ? value : 0;
+}
+
+function normalizeSeverity(value: string): Severity {
+  return (["critical", "high", "medium", "low"] as const).includes(value as Severity)
+    ? (value as Severity)
+    : "medium";
+}
+
+function categoryForException(exceptionType: string): ExceptionCategory {
+  if (exceptionType.includes("damage")) return "damage";
+  if (exceptionType.includes("stalled") || exceptionType.includes("overdue")) return "stalled";
+  return "inbound";
+}
+
+function affectedUnitsForException(
+  exceptionType: string,
+  details: Record<string, unknown>,
+  totals: { expected: number; received: number; damaged: number },
+) {
+  if (exceptionType.includes("damage")) {
+    return detailNumber(details, "damaged_increment") || totals.damaged;
+  }
+  if (exceptionType.includes("overage")) {
+    return detailNumber(details, "overage_quantity") || Math.max(totals.received - totals.expected, 0);
+  }
+  if (exceptionType.includes("shortage")) {
+    return detailNumber(details, "shortage_quantity") || Math.max(totals.expected - totals.received, 0);
+  }
+  return Math.max(Math.abs(totals.expected - totals.received), totals.damaged, 1);
+}
+
+function localizedCaseSummary(
+  exceptionType: string,
+  fallback: string,
+  details: Record<string, unknown>,
+  locale: Locale,
+) {
+  if (locale !== "es") return fallback;
+  if (exceptionType === "inbound_damage") {
+    const units = detailNumber(details, "damaged_increment");
+    return `${units} ${units === 1 ? "unidad dañada" : "unidades dañadas"}`;
+  }
+  if (exceptionType === "inbound_overage") {
+    const units = detailNumber(details, "overage_quantity");
+    return `${units} ${units === 1 ? "unidad sobrante" : "unidades sobrantes"}`;
+  }
+  return fallback;
+}
+
+function persistedExplanation(exceptionType: string, locale: Locale) {
+  const es = locale === "es";
+  if (exceptionType === "inbound_damage") {
+    return es
+      ? "Una recepción física registró unidades dañadas. El caso está vinculado al evento operativo y a su evidencia."
+      : "A physical receipt recorded damaged units. The case is linked to the operational event and its evidence.";
+  }
+  if (exceptionType === "inbound_overage") {
+    return es
+      ? "La cantidad recibida superó la esperada y requiere verificar SKU, conteo y disposición del excedente."
+      : "Received quantity exceeded the expected amount and requires SKU, count, and disposition review.";
+  }
+  return es
+    ? "Una regla determinística creó este caso desde un evento operativo real."
+    : "A deterministic rule created this case from a real operational event.";
+}
+
+function persistedRecommendation(exceptionType: string, locale: Locale) {
+  const es = locale === "es";
+  if (exceptionType === "inbound_damage") {
+    return es
+      ? "Revisa la foto y la nota, confirma que las unidades estén separadas y documenta la resolución."
+      : "Review the photo and note, confirm the units are isolated, and document the resolution.";
+  }
+  if (exceptionType === "inbound_overage") {
+    return es
+      ? "Realiza un recuento, confirma el SKU y acuerda si el excedente será aceptado o devuelto."
+      : "Perform a recount, confirm the SKU, and decide whether the excess will be accepted or returned.";
+  }
+  return es
+    ? "Abre la operación, verifica la evidencia y registra el resultado antes de cerrar el caso."
+    : "Open the operation, verify the evidence, and record the outcome before closing the case.";
+}
+
+function formatCurrency(amount: number, locale: Locale) {
+  return new Intl.NumberFormat(locale === "es" ? "es-US" : "en-US", {
+    style: "currency",
+    currency: "USD",
+  }).format(amount);
 }
 
 function valueOf(value: string | string[] | undefined) { return Array.isArray(value) ? value[0] ?? "" : value ?? ""; }

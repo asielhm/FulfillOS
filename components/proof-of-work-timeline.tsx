@@ -45,7 +45,7 @@ export function ProofOfWorkTimeline({
   ).length;
 
   return (
-    <section className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
+    <section id="proof-of-work" className="scroll-mt-6 rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
       <div className="flex flex-col justify-between gap-4 sm:flex-row sm:items-start">
         <div>
           <p className="text-sm font-bold uppercase tracking-[0.16em] text-[#c7511f]">
